@@ -139,7 +139,7 @@ fun PlanCreationScreen(
                 }
             }
 
-            Divider()
+            HorizontalDivider()
 
             // Work Day Config
             Text("工作日配置", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -175,7 +175,7 @@ fun PlanCreationScreen(
                 )
             }
 
-            Divider()
+            HorizontalDivider()
 
             // Rest Day Config
             Text("非工作日配置", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

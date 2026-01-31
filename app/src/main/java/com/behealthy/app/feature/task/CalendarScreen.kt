@@ -6,6 +6,7 @@ import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -127,6 +129,7 @@ fun CalendarScreen(
     // Weather Data
     val weather by viewModel.weatherForSelectedDate.collectAsState()
     val monthlyWeather by viewModel.weatherForCurrentMonth.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     
     // Map date to task status
     // Status: 0 = No task, 1 = Has tasks (none completed), 2 = Partial, 3 = All Completed, 4 = Exceeded
@@ -204,46 +207,49 @@ fun CalendarScreen(
                 val weekFields = WeekFields.of(Locale.getDefault())
                 val weekNumber = selectedDate.get(weekFields.weekOfWeekBasedYear())
                 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Column(horizontalAlignment = Alignment.End) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "第${weekNumber}周",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.width(4.dp))
                         
-                        weather?.let { w ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                val icon = when(w.condition.name) {
-                                    "Sunny" -> "☀️"
-                                    "Cloudy" -> "☁️"
-                                    "Rainy" -> "🌧️"
-                                    "Snowy" -> "❄️"
-                                    else -> "🌥️"
-                                }
-                                Text(icon, style = MaterialTheme.typography.bodyMedium)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("${w.condition.name} ${w.temperature}°C", style = MaterialTheme.typography.labelSmall)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(w.location, style = MaterialTheme.typography.labelSmall)
+                        // Sync Button (Consistent with Mood Screen)
+                        IconButton(
+                            onClick = { viewModel.forceRefreshSportsData() },
+                            modifier = Modifier.size(20.dp),
+                            enabled = !isLoading
+                        ) {
+                            if (isLoading) {
+                                RunningLoading(size = 14.dp, color = MaterialTheme.colorScheme.primary)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "刷新运动数据",
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
                     }
-                    
-                    // Add refresh button for sports data
-                    IconButton(
-                        onClick = { viewModel.forceRefreshSportsData() },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "刷新运动数据",
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        
+                    weather?.let { w ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val icon = when(w.condition.name) {
+                                "Sunny" -> "☀️"
+                                "Cloudy" -> "☁️"
+                                "Rainy" -> "🌧️"
+                                "Snowy" -> "❄️"
+                                else -> "🌥️"
+                            }
+                            Text(icon, style = MaterialTheme.typography.bodyMedium)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("${w.condition.name} ${w.temperature}°C", style = MaterialTheme.typography.labelSmall)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(w.location, style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             }
@@ -383,7 +389,9 @@ fun FitnessMonthlyStats(
         val fullyCompletedDays = tasksByDate.count { (_, dayTasks) -> 
             dayTasks.isNotEmpty() && dayTasks.all { it.isCompleted }
         }
-        val totalMinutes = monthlyTasks.filter { it.isCompleted }.sumOf { it.actualMinutes }
+        val totalMinutes = monthlyTasks.filter { it.isCompleted }.sumOf { 
+            if (it.actualMinutes > 0) it.actualMinutes else it.workExerciseMinutes 
+        }
         
         Triple(daysWithTasks, fullyCompletedDays, totalMinutes)
     }
@@ -704,8 +712,11 @@ fun TaskDetailSheet(
     
     // Use a reference date to prevent issues if date changes
     val initialDiff = java.time.temporal.ChronoUnit.DAYS.between(referenceDate, selectedDate).toInt()
-    val initialPage = (Int.MAX_VALUE / 2) + initialDiff
-    val pagerState = rememberPagerState(initialPage = initialPage) { Int.MAX_VALUE }
+    // Use a reasonable range (e.g., +/- 50 years = ~36500 days) instead of Int.MAX_VALUE to avoid potential overflow/performance issues
+    val maxPages = 40000
+    val centerPage = maxPages / 2
+    val initialPage = centerPage + initialDiff
+    val pagerState = rememberPagerState(initialPage = initialPage) { maxPages }
     
     val tasks by viewModel.tasksForSelectedDate.collectAsState()
     val dailyActivity by viewModel.dailyActivityForSelectedDate.collectAsState()
@@ -713,7 +724,7 @@ fun TaskDetailSheet(
     
     // Sync pager with selected date
     LaunchedEffect(pagerState.currentPage) {
-        val diff = pagerState.currentPage - (Int.MAX_VALUE / 2)
+        val diff = pagerState.currentPage - centerPage
         val newDate = referenceDate.plusDays(diff.toLong())
         if (newDate != selectedDate) {
             onDateChange(newDate)
@@ -723,7 +734,7 @@ fun TaskDetailSheet(
     // Sync selected date with pager (if changed externally)
     LaunchedEffect(selectedDate) {
         val diff = java.time.temporal.ChronoUnit.DAYS.between(referenceDate, selectedDate).toInt()
-        val targetPage = (Int.MAX_VALUE / 2) + diff
+        val targetPage = centerPage + diff
         if (pagerState.currentPage != targetPage && !pagerState.isScrollInProgress) {
             pagerState.scrollToPage(targetPage)
         }
@@ -750,7 +761,13 @@ fun TaskDetailSheet(
         }
     }
     
-    Box(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f)) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.9f)
+            .navigationBarsPadding() // Handle bottom nav bar overlap
+            .imePadding() // Handle keyboard overlap
+    ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Header (Date only, no buttons)
             Row(
@@ -767,13 +784,11 @@ fun TaskDetailSheet(
             
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                beyondViewportPageCount = 1
             ) { page ->
-                 val pageDiff = page - (Int.MAX_VALUE / 2)
+                 val pageDiff = page - centerPage
                  val pageDate = referenceDate.plusDays(pageDiff.toLong())
-                 
-                 // Show content even if date doesn't match perfectly to avoid flickering/loading state
-                 // The pager ensures we are looking at 'pageDate'.
                  
                 if (pageDate == selectedDate) {
                     Column(
@@ -851,7 +866,7 @@ fun TaskDetailSheet(
                             ) {
                                 items(
                                     items = tasks,
-                                    key = { it.id } // Add key to prevent composition issues
+                                    key = { it.id }
                                 ) { task ->
                                     TaskDetailItem(
                                         task = task, 
@@ -871,8 +886,10 @@ fun TaskDetailSheet(
                         }
                     }
                 } else {
-                    // While swiping, show a placeholder or nothing to prevent accessing wrong data
-                    Box(modifier = Modifier.fillMaxSize())
+                    // Show a placeholder to indicate loading/transition
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                    }
                 }
         }
             
@@ -891,30 +908,30 @@ fun TaskDetailSheet(
         // Navigation Buttons (Vertically Centered)
         IconButton(
             onClick = { 
-                if (!pagerState.isScrollInProgress) {
-                    onDateChange(selectedDate.minusDays(1)) 
+                scope.launch {
+                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
                 }
             },
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .padding(start = 8.dp)
-                .offset(y = 80.dp) // Move down to avoid overlapping with card content
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape)
+                .size(48.dp) // Larger touch area
         ) {
             Icon(Icons.Default.ChevronLeft, contentDescription = "Previous Day")
         }
         
         IconButton(
             onClick = { 
-                if (!pagerState.isScrollInProgress) {
-                    onDateChange(selectedDate.plusDays(1))
+                scope.launch {
+                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
                 }
             },
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 8.dp)
-                .offset(y = 80.dp) // Move down to avoid overlapping with card content
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape)
+                .size(48.dp) // Larger touch area
         ) {
             Icon(Icons.Default.ChevronRight, contentDescription = "Next Day")
         }
@@ -934,11 +951,16 @@ fun TaskDetailItem(
     var previewVideo by remember { mutableStateOf<String?>(null) }
     
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .animateContentSize(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (task.isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
-        )
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -946,65 +968,229 @@ fun TaskDetailItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("健身任务", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Status Icon (Clickable to toggle completion)
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (task.isCompleted) MaterialTheme.colorScheme.primaryContainer 
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            )
+                            .clickable { onUpdate(task.copy(isCompleted = !task.isCompleted)) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (task.isCompleted) {
+                            Icon(
+                                Icons.Default.CheckCircle, 
+                                contentDescription = "Completed",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .border(2.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), CircleShape)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            "健身任务", 
+                            style = MaterialTheme.typography.titleMedium, 
+                            fontWeight = FontWeight.Bold,
+                            color = if (task.isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                        if (task.isCompleted) {
+                            Text(
+                                "已完成",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+                
                 IconButton(onClick = { isExpanded = !isExpanded }) {
-                    Icon(if (isExpanded) androidx.compose.material.icons.Icons.Filled.CheckCircle else androidx.compose.material.icons.Icons.Filled.Edit, contentDescription = "Edit")
+                    Icon(
+                        if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.Edit, 
+                        contentDescription = "Edit",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
             
             Spacer(modifier = Modifier.height(8.dp))
             
-            // Task Summary
+            // Metrics Row (Compact View)
             if (!isExpanded) {
-                if (task.workExerciseMinutes > 0) {
-                     Text("目标时长: ${task.workExerciseMinutes}分钟")
-                }
-                if (task.workExerciseSteps > 0) {
-                     Text("目标步数: ${task.workExerciseSteps}步")
-                }
-                if (task.workExerciseCalories > 0) {
-                     Text("目标消耗: ${task.workExerciseCalories}千卡")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    MetricItem(
+                        icon = Icons.Default.Timer, 
+                        value = "${if (task.actualMinutes > 0) task.actualMinutes else task.workExerciseMinutes}", 
+                        unit = "分钟",
+                        label = "时长"
+                    )
+                    MetricItem(
+                        icon = Icons.Default.DirectionsRun, 
+                        value = "${if (task.actualSteps > 0) task.actualSteps else task.workExerciseSteps}", 
+                        unit = "步",
+                        label = "步数"
+                    )
+                    MetricItem(
+                        icon = Icons.Default.LocalFireDepartment, 
+                        value = "${if (task.actualCalories > 0) task.actualCalories else task.workExerciseCalories}", 
+                        unit = "千卡",
+                        label = "消耗"
+                    )
                 }
                 
+                // Media Preview (Thumbnail strip)
                 val images = task.checkInImages.split(",").filter { it.isNotEmpty() }
                 val videos = task.checkInVideos.split(",").filter { it.isNotEmpty() }
-                
                 if (images.isNotEmpty() || videos.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("打卡记录", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("打卡记录:", style = MaterialTheme.typography.labelMedium)
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(vertical = 4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(images) { path ->
-                            MediaThumbnail(path = path, isVideo = false) { previewImage = path }
+                            MediaThumbnail(path = path, isVideo = false, size = 56.dp) { previewImage = path }
                         }
                         items(videos) { path ->
-                            MediaThumbnail(path = path, isVideo = true) { previewVideo = path }
+                            MediaThumbnail(path = path, isVideo = true, size = 56.dp) { previewVideo = path }
                         }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = { onUpdate(task.copy(isCompleted = !task.isCompleted)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (task.isCompleted) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    if (isLoading) {
-                        RunningLoading(size = 24.dp, color = MaterialTheme.colorScheme.onPrimary)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("保存中...")
-                    } else {
-                        Text(if (task.isCompleted) "已完成" else "打卡")
                     }
                 }
             } else {
-                // Edit Mode (Fission Display / Entry)
-                TaskInputSection(task, isLoading, onUpdate, onPickImage, onPickVideo)
+                // Expanded View (Input Fields)
+                // Duration Slider
+                Text("时长 (分钟)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Slider(
+                    value = (if (task.workExerciseMinutes > 0) task.workExerciseMinutes.toFloat() else 30f),
+                    onValueChange = { /* Display only */ },
+                    valueRange = 0f..180f,
+                    enabled = false, 
+                    colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                )
+                Text(
+                    text = "${task.workExerciseMinutes}", 
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                // Steps Input
+                OutlinedTextField(
+                    value = "${task.workExerciseSteps}",
+                    onValueChange = { 
+                        if (it.all { char -> char.isDigit() }) {
+                             onUpdate(task.copy(workExerciseSteps = it.toIntOrNull() ?: 0))
+                        }
+                    },
+                    label = { Text("步数") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    )
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Calories Input
+                OutlinedTextField(
+                    value = "${task.workExerciseCalories}",
+                    onValueChange = { 
+                         if (it.all { char -> char.isDigit() }) {
+                             onUpdate(task.copy(workExerciseCalories = it.toIntOrNull() ?: 0))
+                        }
+                    },
+                    label = { Text("消耗 (千卡)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    )
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Note Input
+                OutlinedTextField(
+                    value = task.note,
+                    onValueChange = { onUpdate(task.copy(note = it)) },
+                    label = { Text("备注") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    maxLines = 3,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    )
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Media Section
+                val images = task.checkInImages.split(",").filter { it.isNotEmpty() }.toMutableList()
+                MediaSection(
+                    title = "打卡图片",
+                    mediaList = images,
+                    isVideo = false,
+                    maxCount = 5,
+                    onAddMedia = { onPickImage?.invoke { newPaths ->
+                        val updated = (images + newPaths).take(5).joinToString(",")
+                        onUpdate(task.copy(checkInImages = updated))
+                    }},
+                    onRemoveMedia = { path ->
+                        images.remove(path)
+                        onUpdate(task.copy(checkInImages = images.joinToString(",")))
+                    },
+                    onMediaClick = { previewImage = it }
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                val videos = task.checkInVideos.split(",").filter { it.isNotEmpty() }.toMutableList()
+                MediaSection(
+                    title = "打卡视频",
+                    mediaList = videos,
+                    isVideo = true,
+                    maxCount = 3,
+                    onAddMedia = { onPickVideo?.invoke { newPaths ->
+                        val updated = (videos + newPaths).take(3).joinToString(",")
+                        onUpdate(task.copy(checkInVideos = updated))
+                    }},
+                    onRemoveMedia = { path ->
+                        videos.remove(path)
+                        onUpdate(task.copy(checkInVideos = videos.joinToString(",")))
+                    },
+                    onMediaClick = { previewVideo = it }
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Save Button (Collapses expanded view)
+                Button(
+                    onClick = { isExpanded = false },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("完成编辑")
+                }
             }
         }
     }
@@ -1024,10 +1210,10 @@ fun OppoDataParam(label: String, value: String, unit: String, icon: ImageVector)
 }
 
 @Composable
-fun MediaThumbnail(path: String, isVideo: Boolean, onClick: () -> Unit) {
+fun MediaThumbnail(path: String, isVideo: Boolean, size: androidx.compose.ui.unit.Dp = 100.dp, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(60.dp)
+            .size(size)
             .clip(RoundedCornerShape(4.dp))
             .background(Color.LightGray)
             .clickable { onClick() }
@@ -1064,6 +1250,23 @@ fun MediaThumbnail(path: String, isVideo: Boolean, onClick: () -> Unit) {
                  modifier = Modifier.align(Alignment.Center).size(24.dp)
              )
          }
+    }
+}
+
+@Composable
+fun MetricItem(icon: ImageVector, value: String, unit: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(unit, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

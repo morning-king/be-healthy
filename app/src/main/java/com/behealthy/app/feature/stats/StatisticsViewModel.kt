@@ -129,8 +129,12 @@ class StatisticsViewModel @Inject constructor(
             workManager.enqueue(syncRequest)
             
             workManager.getWorkInfoByIdFlow(syncRequest.id)
-                .filter { it.state.isFinished }
+                .filter { it?.state?.isFinished == true }
                 .first()
+            
+            // Add a small delay to ensure the loading animation is visible and feels responsive
+            kotlinx.coroutines.delay(800)
+            
             onComplete()
             refresh()
         }

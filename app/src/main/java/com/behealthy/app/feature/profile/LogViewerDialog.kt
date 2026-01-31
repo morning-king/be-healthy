@@ -8,6 +8,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -17,110 +20,185 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.behealthy.app.core.logger.AppLogger
-import com.behealthy.app.core.logger.LogEntry
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.*
+import java.time.format.DateTimeFormatter
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun LogViewerDialog(onDismiss: () -> Unit, onTriggerSync: () -> Unit) {
+fun LogViewerDialog(
+    onDismiss: () -> Unit,
+    onTriggerSync: () -> Unit
+) {
     val logs by AppLogger.logs.collectAsState()
+    val clipboardManager = LocalClipboardManager.current
     
+    // Group logs by date (descending)
+    val groupedLogs = remember(logs) {
+        logs.groupBy { it.timestamp.toLocalDate() }
+            .toSortedMap(compareByDescending { it })
+    }
+    val dates = remember(groupedLogs) { groupedLogs.keys.toList() }
+    
+    val pagerState = rememberPagerState(pageCount = { if (dates.isEmpty()) 1 else dates.size })
+    val scope = rememberCoroutineScope()
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Surface(
+        Card(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
             shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
                 // Header
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "日志诊断看板",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column {
+                        Text(
+                            text = "应用日志 / 诊断信息",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        if (dates.isNotEmpty()) {
+                            val currentDate = dates.getOrNull(pagerState.currentPage)
+                            currentDate?.let {
+                                Text(
+                                    text = it.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
                     Row {
-                        IconButton(onClick = onTriggerSync) {
-                            Icon(Icons.Filled.Refresh, contentDescription = "Sync Now", tint = MaterialTheme.colorScheme.primary)
+                        IconButton(onClick = {
+                            if (dates.isNotEmpty()) {
+                                val currentDate = dates[pagerState.currentPage]
+                                val currentLogs = groupedLogs[currentDate] ?: emptyList()
+                                val text = currentLogs.joinToString("\n") { it.toString() }
+                                clipboardManager.setText(AnnotatedString(text))
+                            } else {
+                                clipboardManager.setText(AnnotatedString("No logs"))
+                            }
+                        }) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy Current Page Logs")
                         }
                         IconButton(onClick = { AppLogger.clear() }) {
                             Icon(Icons.Default.Delete, contentDescription = "Clear Logs")
+                        }
+                        IconButton(onClick = onTriggerSync) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh Data")
                         }
                         IconButton(onClick = onDismiss) {
                             Icon(Icons.Default.Close, contentDescription = "Close")
                         }
                     }
                 }
-                
+
                 Divider()
-                
-                // Log List
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = 16.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (logs.isEmpty()) {
-                        item {
-                            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                                Text("暂无日志", color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                // Pager content
+                if (logs.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "暂无日志",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .background(Color.Black.copy(alpha = 0.05f))
+                            .padding(8.dp)
+                    ) { page ->
+                        if (dates.isNotEmpty() && page < dates.size) {
+                            val date = dates[page]
+                            val pageLogs = groupedLogs[date] ?: emptyList()
+                            
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(pageLogs) { log ->
+                                    Text(
+                                        text = log.toString(),
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 10.sp
+                                        ),
+                                        modifier = Modifier.padding(vertical = 2.dp)
+                                    )
+                                    Divider(color = Color.LightGray.copy(alpha = 0.2f), thickness = 0.5.dp)
+                                }
                             }
                         }
-                    } else {
-                        items(logs) { log ->
-                            LogItem(log)
-                            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    }
+                    
+                    // Pager Indicator / Navigation
+                    if (dates.size > 1) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = { 
+                                    if (pagerState.currentPage > 0) {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(pagerState.currentPage - 1) 
+                                        }
+                                    }
+                                },
+                                enabled = pagerState.currentPage > 0
+                            ) {
+                                Icon(Icons.Default.ChevronLeft, "Prev")
+                            }
+                            
+                            Text(
+                                text = "${pagerState.currentPage + 1} / ${dates.size}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            
+                            IconButton(
+                                onClick = { 
+                                    if (pagerState.currentPage < dates.size - 1) {
+                                         scope.launch {
+                                            pagerState.animateScrollToPage(pagerState.currentPage + 1) 
+                                         }
+                                    }
+                                },
+                                enabled = pagerState.currentPage < dates.size - 1
+                            ) {
+                                Icon(Icons.Default.ChevronRight, "Next")
+                            }
                         }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-fun LogItem(log: LogEntry) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = log.timestamp,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontFamily = FontFamily.Monospace
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "[${log.tag}]",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.secondary
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = log.message,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontFamily = FontFamily.Monospace
-        )
     }
 }

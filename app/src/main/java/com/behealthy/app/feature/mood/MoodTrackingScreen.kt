@@ -14,9 +14,12 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -25,6 +28,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Close
@@ -41,10 +48,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.behealthy.app.core.database.entity.MoodRecordEntity
@@ -158,11 +166,34 @@ fun MoodTrackingScreen(
                 val weekNumber = selectedDate.get(weekFields.weekOfWeekBasedYear())
                 
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "第${weekNumber}周",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "第${weekNumber}周",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        // Refresh Weather Button
+                        IconButton(
+                            onClick = { viewModel.refreshWeather(selectedDate) },
+                            modifier = Modifier.size(20.dp),
+                            enabled = !isLoading
+                        ) {
+                            if (isLoading) {
+                                com.behealthy.app.ui.RunningLoading(
+                                    modifier = Modifier.size(14.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Refresh, 
+                                    contentDescription = "Refresh Weather",
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
                     
                     weather?.let { w ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -232,17 +263,14 @@ fun MoodTrackingScreen(
         }
         
         if (showMoodDialog) {
-            val record = moodMap[selectedDate]
             MoodEntryDialog(
-                date = selectedDate,
-                 initialMood = record?.mood,
-                 initialNote = record?.note ?: "",
-                 initialAudioPath = record?.audioPath,
-                 initialAudioDuration = record?.audioDuration ?: 0L,
-                 isLoading = isLoading,
-                 onDismiss = { showMoodDialog = false },
-                onSave = { mood, note, audioPath, audioDuration ->
-                    viewModel.saveMood(selectedDate, mood, note, audioPath, audioDuration)
+                initialDate = selectedDate,
+                moodMap = moodMap,
+                isLoading = isLoading,
+                onDismiss = { showMoodDialog = false },
+                onDateChange = { selectedDate = it },
+                onSave = { date, mood, note, audioPath, audioDuration ->
+                    viewModel.saveMood(date, mood, note, audioPath, audioDuration)
                     lastSavedMood = mood
                     isSaving = true
                 }
@@ -446,25 +474,147 @@ fun MoodAnimationOverlay(mood: String) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MoodEntryDialog(
+    initialDate: LocalDate,
+    moodMap: Map<LocalDate, MoodRecordEntity>,
+    isLoading: Boolean = false,
+    onDismiss: () -> Unit,
+    onDateChange: (LocalDate) -> Unit,
+    onSave: (LocalDate, String, String, String?, Long) -> Unit
+) {
+    // We use a fixed reference date (e.g. today or the clicked date) as the anchor for page 0 (or a large number)
+    // To allow scrolling back and forth from the clicked date, we can set the initial page to a large number
+    // and map offsets from that.
+    
+    // Use a reasonable range instead of Int.MAX_VALUE to prevent crashes
+    val maxPages = 40000
+    val centerPage = maxPages / 2
+    val initialPage = centerPage
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { maxPages }
+    )
+
+    // Store the date that was selected when the dialog opened.
+    // This serves as the anchor for calculating dates based on page offset.
+    val anchorDate = remember { initialDate }
+
+    // When page changes, update the parent's selected date
+    LaunchedEffect(pagerState.currentPage) {
+        val diff = pagerState.currentPage - initialPage
+        val newDate = anchorDate.plusDays(diff.toLong())
+        onDateChange(newDate)
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false) // Allow full width control to fix layout issues
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxSize() // Fill the screen
+                .imePadding() // Handle keyboard
+        ) {
+            // Semi-transparent background for the "dim" effect if needed, but Dialog does it.
+            // We just need the pager to be centered and have correct width.
+            
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxWidth(0.95f) // Take 95% of width to show margins
+                    .fillMaxHeight(0.85f), // Constrain height
+                contentPadding = PaddingValues(horizontal = 0.dp),
+                beyondViewportPageCount = 1 // Preload adjacent pages to prevent crash on swipe
+            ) { page ->
+                val diff = page - initialPage
+                val pageDate = anchorDate.plusDays(diff.toLong())
+                val record = moodMap[pageDate]
+                
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    MoodEntryCard(
+                        date = pageDate,
+                        initialMood = record?.mood,
+                        initialNote = record?.note ?: "",
+                        initialAudioPath = record?.audioPath,
+                        initialAudioDuration = record?.audioDuration ?: 0L,
+                        isLoading = isLoading,
+                        onSave = { mood, note, path, duration ->
+                            onSave(pageDate, mood, note, path, duration)
+                        },
+                        onDismiss = onDismiss,
+                        onPrevDay = {},
+                        onNextDay = {}
+                    )
+                }
+            }
+            
+            // Floating Navigation Buttons (Vertically Centered)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp)
+                    .align(Alignment.Center),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                val scope = rememberCoroutineScope()
+                
+                IconButton(
+                    onClick = { 
+                        scope.launch { 
+                            pagerState.animateScrollToPage(pagerState.currentPage - 1) 
+                        } 
+                    },
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape)
+                        .size(40.dp)
+                ) {
+                    Icon(Icons.Default.ChevronLeft, "Previous Day")
+                }
+                
+                IconButton(
+                    onClick = { 
+                        scope.launch { 
+                            pagerState.animateScrollToPage(pagerState.currentPage + 1) 
+                        } 
+                    },
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape)
+                        .size(40.dp)
+                ) {
+                    Icon(Icons.Default.ChevronRight, "Next Day")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MoodEntryCard(
     date: LocalDate,
     initialMood: String?,
     initialNote: String,
     initialAudioPath: String?,
     initialAudioDuration: Long,
-    isLoading: Boolean = false,
+    isLoading: Boolean,
+    onSave: (String, String, String?, Long) -> Unit,
     onDismiss: () -> Unit,
-    onSave: (String, String, String?, Long) -> Unit
+    onPrevDay: () -> Unit,
+    onNextDay: () -> Unit
 ) {
-    var isEditing by remember { mutableStateOf(initialMood == null) }
-    var selectedMood by remember { mutableStateOf(initialMood) }
-    var moodNote by remember { mutableStateOf(initialNote) }
+    var isEditing by remember(date) { mutableStateOf(initialMood == null) }
+    var selectedMood by remember(date) { mutableStateOf(initialMood) }
+    var moodNote by remember(date) { mutableStateOf(initialNote) }
     
     // Audio State
     val context = LocalContext.current
-    var audioPath by remember { mutableStateOf(initialAudioPath) }
-    var audioDuration by remember { mutableLongStateOf(initialAudioDuration) }
+    var audioPath by remember(date) { mutableStateOf(initialAudioPath) }
+    var audioDuration by remember(date) { mutableLongStateOf(initialAudioDuration) }
     var isRecording by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
     var recordingTime by remember { mutableLongStateOf(0L) }
@@ -477,7 +627,12 @@ fun MoodEntryDialog(
         if (granted) {
             val file = File(context.cacheDir, "mood_audio_${System.currentTimeMillis()}.3gp")
             try {
-                mediaRecorder = MediaRecorder().apply {
+                mediaRecorder = (if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    MediaRecorder(context)
+                } else {
+                    @Suppress("DEPRECATION")
+                    MediaRecorder()
+                }).apply {
                     setAudioSource(MediaRecorder.AudioSource.MIC)
                     setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
                     setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
@@ -544,127 +699,133 @@ fun MoodEntryDialog(
         "孤独" to "😔"
     )
     
-    Dialog(
-        onDismissRequest = onDismiss
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant // Theme-aware background
+        )
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant // Theme-aware background
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Header with Date
+            Text(
+                text = date.format(DateTimeFormatter.ofPattern("MM月dd日")),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (!isEditing && selectedMood != null) {
+                // View Mode
+                Text(
+                    text = if (date == LocalDate.now()) "今日心情" else "心情记录",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
                 )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp)
-                        .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    if (!isEditing && selectedMood != null) {
-                    // View Mode
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                val icon = moodOptions.find { it.first == selectedMood }?.second ?: "😊"
+                Text(text = icon, fontSize = 80.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = selectedMood!!,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                if (moodNote.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        text = "今日心情",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        text = moodNote,
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                            .padding(16.dp)
                     )
-                    Spacer(modifier = Modifier.height(32.dp))
-                    
-                    val icon = moodOptions.find { it.first == selectedMood }?.second ?: "😊"
-                    Text(text = icon, fontSize = 80.sp)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = selectedMood!!,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    
-                    if (moodNote.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Text(
-                            text = moodNote,
-                            style = MaterialTheme.typography.bodyLarge,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                                .padding(16.dp)
-                        )
-                    }
-                    
-                    if (audioPath != null) {
-                        Spacer(modifier = Modifier.height(24.dp))
-                        // Simple Player UI for View Mode
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(50))
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                .clickable {
-                                    if (isPlaying) {
-                                        mediaPlayer?.stop()
-                                        mediaPlayer?.release()
-                                        mediaPlayer = null
-                                        isPlaying = false
-                                    } else {
-                                        try {
-                                            mediaPlayer = MediaPlayer().apply {
-                                                setDataSource(audioPath)
-                                                prepare()
-                                                start()
-                                                setOnCompletionListener { 
-                                                    isPlaying = false
-                                                    it.release()
-                                                    mediaPlayer = null
-                                                }
+                }
+                
+                if (audioPath != null) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    // Simple Player UI for View Mode
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(50))
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .clickable {
+                                if (isPlaying) {
+                                    mediaPlayer?.stop()
+                                    mediaPlayer?.release()
+                                    mediaPlayer = null
+                                    isPlaying = false
+                                } else {
+                                    try {
+                                        mediaPlayer = MediaPlayer().apply {
+                                            setDataSource(audioPath)
+                                            prepare()
+                                            start()
+                                            setOnCompletionListener { 
+                                                isPlaying = false
+                                                it.release()
+                                                mediaPlayer = null
                                             }
-                                            isPlaying = true
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "播放失败", Toast.LENGTH_SHORT).show()
                                         }
+                                        isPlaying = true
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "播放失败", Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                        ) {
-                            Icon(
-                                if (isPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
-                                contentDescription = "Play/Stop",
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "${audioDuration}s 语音心情", 
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(32.dp))
-                    Button(
-                        onClick = { isEditing = true },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        shape = RoundedCornerShape(25.dp)
+                            }
                     ) {
-                        Text("修改心情", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Icon(
+                            if (isPlaying) Icons.Default.Close else Icons.Default.PlayArrow,
+                            contentDescription = "Play/Stop",
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "${audioDuration}s 语音心情", 
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                } else {
-                    // Edit Mode
-                    Text(
-                        text = if (selectedMood == null) "今天心情怎么样？" else "修改心情",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // Mood Grid - 3 Columns, no scrolling, smaller icons
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
+                }
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                Button(
+                    onClick = { isEditing = true },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(25.dp)
+                ) {
+                    Text("修改心情", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                // Edit Mode
+                Text(
+                    text = if (selectedMood == null) 
+                        if (date == LocalDate.now()) "今天心情怎么样？" else "那天心情怎么样？"
+                        else "修改心情",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Mood Grid - 3 Columns, no scrolling, smaller icons
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     moodOptions.chunked(3).forEach { row ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -795,7 +956,12 @@ fun MoodEntryDialog(
                             if (hasPermission) {
                                 val file = File(context.cacheDir, "mood_audio_${System.currentTimeMillis()}.3gp")
                                 try {
-                                    mediaRecorder = MediaRecorder().apply {
+                                    mediaRecorder = (if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                        MediaRecorder(context)
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        MediaRecorder()
+                                    }).apply {
                                         setAudioSource(MediaRecorder.AudioSource.MIC)
                                         setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
                                         setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
@@ -862,8 +1028,6 @@ fun MoodEntryDialog(
             }
         }
     }
-}
-}
 }
 
 @Composable

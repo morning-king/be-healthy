@@ -159,6 +159,7 @@ class TaskViewModel @Inject constructor(
 
     fun forceRefreshSportsData() {
         viewModelScope.launch {
+            _isLoading.value = true
             try {
                 // Force refresh today's sports data
                 val today = LocalDate.now()
@@ -187,8 +188,11 @@ class TaskViewModel @Inject constructor(
                 
                 // Also trigger a manual sync if needed
                 android.util.Log.d("TaskViewModel", "Force refreshed sports data: $freshData")
+                kotlinx.coroutines.delay(500) // Ensure loading is visible
             } catch (e: Exception) {
                 android.util.Log.e("TaskViewModel", "Error force refreshing sports data", e)
+            } finally {
+                _isLoading.value = false
             }
         }
     }

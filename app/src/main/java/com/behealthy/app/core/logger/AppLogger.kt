@@ -1,41 +1,45 @@
 package com.behealthy.app.core.logger
 
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 data class LogEntry(
-    val timestamp: String,
+    val timestamp: LocalDateTime,
     val tag: String,
     val message: String
-)
+) {
+    override fun toString(): String {
+        val formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
+        return "[${timestamp.format(formatter)}] $tag: $message"
+    }
+}
 
 object AppLogger {
     private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
-    val logs = _logs.asStateFlow()
-    
-    private val dateFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm:ss")
-    
+    val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
+
+    private val dateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
+
     fun log(tag: String, message: String) {
-        val entry = LogEntry(
-            timestamp = LocalDateTime.now().format(dateFormatter),
-            tag = tag,
-            message = message
-        )
-        // Keep last 1000 logs
-        val currentLogs = _logs.value.toMutableList()
-        currentLogs.add(0, entry) // Add to top
-        if (currentLogs.size > 1000) {
-            _logs.value = currentLogs.take(1000)
-        } else {
-            _logs.value = currentLogs
-        }
+        val now = LocalDateTime.now()
+        val logEntry = LogEntry(now, tag, message)
         
-        // Also log to system log
-        android.util.Log.d(tag, message)
+        // Log to Android Logcat
+        Log.d(tag, message)
+        
+        // Add to in-memory logs (keep last 1000 lines)
+        val currentLogs = _logs.value.toMutableList()
+        currentLogs.add(0, logEntry) // Add to top
+        if (currentLogs.size > 1000) {
+            currentLogs.removeAt(currentLogs.lastIndex)
+        }
+        _logs.value = currentLogs
     }
-    
+
     fun clear() {
         _logs.value = emptyList()
     }

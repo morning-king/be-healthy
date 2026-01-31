@@ -28,6 +28,7 @@ class MoodViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _refreshTrigger = MutableStateFlow(0)
+    private val _weatherRefreshTrigger = MutableStateFlow(0)
     
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -44,9 +45,10 @@ class MoodViewModel @Inject constructor(
 
     private val _currentMonth = MutableStateFlow(YearMonth.now())
 
-    val weatherForSelectedDate = _selectedDate.flatMapLatest { date ->
-        weatherRepository.getWeatherForDate(date)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val weatherForSelectedDate = combine(_selectedDate, _weatherRefreshTrigger) { date, _ -> date }
+        .flatMapLatest { date ->
+            weatherRepository.getWeatherForDate(date)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val weatherForCurrentMonth = _currentMonth.flatMapLatest { month ->
         flow {
@@ -216,6 +218,15 @@ class MoodViewModel @Inject constructor(
 
     fun refreshPoem() {
         _currentPoem.value = getRandomPoem()
+    }
+
+    fun refreshWeather(date: LocalDate) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _weatherRefreshTrigger.value += 1
+            delay(1000) // Show loading animation
+            _isLoading.value = false
+        }
     }
 
     private fun getRandomPoem(): Poem {

@@ -45,6 +45,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.material.icons.filled.BugReport
+import androidx.core.graphics.toColorInt
 import com.behealthy.app.feature.profile.LogViewerDialog
 import kotlinx.coroutines.launch
 
@@ -86,7 +87,7 @@ fun StatisticsScreen(
             viewModel.syncData(onComplete = { isSyncing = false })
         } else {
             // Permission denied or partial grant
-            healthConnectDialogMessage = "权限请求未完成，请手动在设置中开启所有 Health Connect 权限"
+            healthConnectDialogMessage = "权限未全部授予。若系统未弹出授权窗口或无法点击，请尝试以下步骤：\n\n1. 打开手机“设置”\n2. 搜索“健康连接”或“Health Connect”\n3. 点击进入“应用权限”\n4. 找到“Be Healthy”并允许所有权限"
             showHealthConnectDialog = true
         }
     }
@@ -169,7 +170,7 @@ fun StatisticsScreen(
                                     try {
                                         permissionLauncher.launch(viewModel.getHealthConnectPermissions())
                                     } catch (e: Exception) {
-                                        healthConnectDialogMessage = "启动权限请求失败，请手动在设置中开启 Health Connect 权限"
+                                        healthConnectDialogMessage = "启动权限请求失败。请手动设置：\n\n1. 打开手机“设置”\n2. 搜索“健康连接”\n3. 进入“应用权限”并授权本应用"
                                         showHealthConnectDialog = true
                                     }
                                 }
@@ -180,7 +181,11 @@ fun StatisticsScreen(
                     contentColor = Color.White
                 ) {
                     if (isSyncing) {
-                        RunningLoading(size = 32.dp, color = Color.White)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
                     } else {
                         Icon(Icons.Default.Refresh, contentDescription = "Sync Data")
                     }
@@ -220,15 +225,13 @@ fun StatisticsScreen(
             }
         }
 
-        if (state.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                RunningLoading()
-            }
-        } else {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
+                modifier = Modifier.fillMaxSize()
             ) {
                 // Date Range Selector
                 DateRangeSelector(
@@ -339,6 +342,19 @@ fun StatisticsScreen(
                     }
                 }
             }
+
+            // Loading Overlay
+            if (state.isLoading || isSyncing) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background.copy(alpha = 0.8f))
+                        .clickable(enabled = false) {},
+                    contentAlignment = Alignment.Center
+                ) {
+                    RunningLoading()
+                }
+            }
         }
         
         if (showDetailDialog != null) {
@@ -370,11 +386,14 @@ fun DateRangeSelector(
                 selected = isSelected,
                 onClick = { onRangeSelected(range) },
                 label = { Text(range.label) },
+                enabled = true,
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = OppoGreen,
                     selectedLabelColor = Color.White
                 ),
                 border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = isSelected,
                     borderColor = if (isSelected) OppoGreen else MaterialTheme.colorScheme.outline
                 )
             )
@@ -483,7 +502,25 @@ fun ExerciseCurveChartCard(dailyStats: List<DailyStatItem>) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("运动趋势 (热量/时长)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("运动趋势 (热量/时长)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(8.dp).background(BritishRed, CircleShape))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("热量", style = MaterialTheme.typography.labelSmall)
+                    
+                    Spacer(modifier = Modifier.width(12.dp))
+                    
+                    Box(modifier = Modifier.size(8.dp).background(Color(0xFFE6A23C), CircleShape))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("时长", style = MaterialTheme.typography.labelSmall)
+                }
+            }
             Spacer(modifier = Modifier.height(16.dp))
             ExerciseCurveChart(dailyStats)
         }
@@ -557,7 +594,7 @@ fun ExerciseCurveChart(dailyStats: List<DailyStatItem>) {
                 y - 5f,
                 textPaint.apply { 
                     textSize = 20f
-                    color = android.graphics.Color.parseColor("#B71C1C") 
+                    color = "#B71C1C".toColorInt() 
                     textAlign = Paint.Align.LEFT
                 }
             )
@@ -570,7 +607,7 @@ fun ExerciseCurveChart(dailyStats: List<DailyStatItem>) {
                 y - 5f,
                 textPaint.apply { 
                     textSize = 20f
-                    color = android.graphics.Color.parseColor("#E6A23C") 
+                    color = "#E6A23C".toColorInt() 
                     textAlign = Paint.Align.RIGHT
                 }
             )
@@ -628,7 +665,7 @@ fun ExerciseCurveChart(dailyStats: List<DailyStatItem>) {
                      "${item.calories}",
                      x,
                      yCal - 15f,
-                     textPaint.apply { textSize = 20f; color = android.graphics.Color.parseColor("#B71C1C") } // BritishRed
+                     textPaint.apply { textSize = 20f; color = "#B71C1C".toColorInt() } // BritishRed
                  )
                  
                  val yMin = chartHeight - (item.minutes.toFloat() / maxMinutes * chartHeight)
@@ -639,7 +676,7 @@ fun ExerciseCurveChart(dailyStats: List<DailyStatItem>) {
                      "${item.minutes}",
                      x,
                      yMinTextY,
-                     textPaint.apply { textSize = 20f; color = android.graphics.Color.parseColor("#E6A23C") } // Orange
+                     textPaint.apply { textSize = 20f; color = "#E6A23C".toColorInt() } // Orange
                  )
                  
                  // Reset paint
@@ -679,10 +716,21 @@ fun MoodCurveChart(dailyStats: List<DailyStatItem>) {
             typeface = Typeface.DEFAULT
         }
     }
+    
+    // Representative icons for Y-axis
+    val yAxisIcons = mapOf(
+        5 to "😄", // Excellent
+        4 to "😌", // Good
+        3 to "😐", // Average
+        2 to "😵", // Poor
+        1 to "😢"  // Bad
+    )
 
     Canvas(modifier = Modifier
         .fillMaxWidth()
-        .height(150.dp)) {
+        .height(180.dp) // Increased height for better visibility
+        .padding(start = 24.dp) // Padding for Y-axis
+    ) {
         
         val width = size.width
         val height = size.height
@@ -692,6 +740,25 @@ fun MoodCurveChart(dailyStats: List<DailyStatItem>) {
         
         // 1-5 scale
         val maxScore = 5f
+        
+        // Draw Y-Axis Icons
+        yAxisIcons.forEach { (score, icon) ->
+            val y = chartHeight - (score / maxScore * chartHeight)
+            drawContext.canvas.nativeCanvas.drawText(
+                icon,
+                -20f, // Draw to the left of the chart area
+                y + 10f, // Center vertically relative to the grid line
+                textPaint.apply { textSize = 30f; textAlign = Paint.Align.LEFT }
+            )
+            
+            // Draw faint grid line
+            drawLine(
+                color = Color.LightGray.copy(alpha = 0.2f),
+                start = Offset(0f, y),
+                end = Offset(width, y),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
         
         // Draw Mood Line (Blue)
         val moodPath = Path()
@@ -707,23 +774,22 @@ fun MoodCurveChart(dailyStats: List<DailyStatItem>) {
                     item.date.format(DateTimeFormatter.ofPattern("MM-dd")),
                     x,
                     height - 10f,
-                    textPaint
+                    textPaint.apply { textSize = 24f; textAlign = Paint.Align.CENTER; color = android.graphics.Color.GRAY }
                 )
             }
 
             if (item.moodScore > 0) {
                 val y = chartHeight - (item.moodScore / maxScore * chartHeight)
                 
+                // Draw icon at data point if space permits or if it's a key point
                 if (showLabel) {
+                    val icon = moodIcons[item.mood] ?: "😊"
                     drawContext.canvas.nativeCanvas.drawText(
-                        "${item.moodScore.toInt()}",
+                        icon,
                         x,
                         y - 15f,
-                        textPaint.apply { textSize = 20f; color = android.graphics.Color.parseColor("#00247D") } // BritishBlue
+                        textPaint.apply { textSize = 32f } 
                     )
-                     // Reset paint
-                     textPaint.color = android.graphics.Color.GRAY
-                     textPaint.textSize = 24f
                 }
                 
                 if (!hasStart) {
@@ -945,12 +1011,13 @@ fun SummaryCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = value,
                     style = valueStyle,
                     fontWeight = FontWeight.Bold,
-                    color = color
+                    color = color,
+                    modifier = Modifier.alignByBaseline()
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
@@ -958,7 +1025,8 @@ fun SummaryCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    softWrap = false
+                    softWrap = false,
+                    modifier = Modifier.alignByBaseline()
                 )
             }
         }
