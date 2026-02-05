@@ -11,5 +11,7 @@ enum class ThemeStyle {
     NewYear,
     NBA,
     Badminton,
-    FootballWorldCup
+    FootballWorldCup,
+    Zen,
+    Dao
 }

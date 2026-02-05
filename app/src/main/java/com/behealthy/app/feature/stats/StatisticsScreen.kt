@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.BarChart
@@ -32,8 +31,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.PermissionController
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import kotlin.math.roundToInt
 import com.behealthy.app.ui.RunningLoading
 import com.behealthy.app.ui.theme.BritishBlue
 import com.behealthy.app.ui.theme.BritishRed
@@ -43,10 +43,8 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import android.graphics.Paint
 import android.graphics.Typeface
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.material.icons.filled.BugReport
 import androidx.core.graphics.toColorInt
-import com.behealthy.app.feature.profile.LogViewerDialog
+import androidx.core.graphics.toColorInt
 import kotlinx.coroutines.launch
 
 // Mood icon mapping
@@ -70,128 +68,10 @@ fun StatisticsScreen(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val state by viewModel.uiState.collectAsState()
-    val healthConnectStatus by viewModel.healthConnectStatus.collectAsState()
     var showDetailDialog by remember { mutableStateOf<DetailType?>(null) }
-    var isSyncing by remember { mutableStateOf(false) }
-    var showHealthConnectDialog by remember { mutableStateOf(false) }
-    var showLogDialog by remember { mutableStateOf(false) }
-    var healthConnectDialogMessage by remember { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
-    
-    // Permission request launcher
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract()
-    ) { grantedPermissions ->
-        if (grantedPermissions.containsAll(viewModel.getHealthConnectPermissions())) {
-            isSyncing = true
-            viewModel.syncData(onComplete = { isSyncing = false })
-        } else {
-            // Permission denied or partial grant
-            healthConnectDialogMessage = "权限未全部授予。若系统未弹出授权窗口或无法点击，请尝试以下步骤：\n\n1. 打开手机“设置”\n2. 搜索“健康连接”或“Health Connect”\n3. 点击进入“应用权限”\n4. 找到“Be Healthy”并允许所有权限"
-            showHealthConnectDialog = true
-        }
-    }
-
-    if (showLogDialog) {
-        LogViewerDialog(
-            onDismiss = { showLogDialog = false },
-            onTriggerSync = { viewModel.syncData(onComplete = {}) }
-        )
-    }
-
-    if (showHealthConnectDialog) {
-        AlertDialog(
-            onDismissRequest = { showHealthConnectDialog = false },
-            title = { Text("Health Connect") },
-            text = { Text(healthConnectDialogMessage) },
-            confirmButton = {
-                TextButton(onClick = { 
-                    showHealthConnectDialog = false
-                    // Try to open Health Connect settings if it's a permission issue
-                    if (healthConnectDialogMessage.contains("权限")) {
-                        try {
-                            val intent = android.content.Intent("androidx.health.ACTION_HEALTH_CONNECT_SETTINGS")
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            // Fallback to app details
-                            try {
-                                val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                    data = android.net.Uri.fromParts("package", context.packageName, null)
-                                }
-                                context.startActivity(intent)
-                            } catch (e2: Exception) {
-                                // Ignore
-                            }
-                        }
-                    }
-                }) {
-                    Text(if (healthConnectDialogMessage.contains("权限")) "去设置" else "知道了")
-                }
-            },
-            dismissButton = {
-                if (healthConnectDialogMessage.contains("权限")) {
-                    TextButton(onClick = { showHealthConnectDialog = false }) {
-                        Text("取消")
-                    }
-                }
-            }
-        )
-    }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        floatingActionButton = {
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Bug Report Button
-                SmallFloatingActionButton(
-                    onClick = { showLogDialog = true },
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                ) {
-                    Icon(Icons.Default.BugReport, contentDescription = "诊断")
-                }
-
-                FloatingActionButton(
-                    onClick = { 
-                        // Check permissions first
-                        scope.launch {
-                            val status = viewModel.getHealthConnectSdkStatus()
-                            if (status == HealthConnectClient.SDK_UNAVAILABLE) {
-                                healthConnectDialogMessage = "此设备不支持 Health Connect"
-                                showHealthConnectDialog = true
-                            } else if (status == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) {
-                                healthConnectDialogMessage = "需更新 Health Connect 组件"
-                                showHealthConnectDialog = true
-                            } else {
-                                if (viewModel.hasHealthConnectPermissions()) {
-                                    isSyncing = true
-                                    viewModel.syncData(onComplete = { isSyncing = false })
-                                } else {
-                                    try {
-                                        permissionLauncher.launch(viewModel.getHealthConnectPermissions())
-                                    } catch (e: Exception) {
-                                        healthConnectDialogMessage = "启动权限请求失败。请手动设置：\n\n1. 打开手机“设置”\n2. 搜索“健康连接”\n3. 进入“应用权限”并授权本应用"
-                                        showHealthConnectDialog = true
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White
-                ) {
-                    if (isSyncing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(Icons.Default.Refresh, contentDescription = "Sync Data")
-                    }
-                }
-            }
-        }
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         // Custom Date Picker State
         var showDateRangePicker by remember { mutableStateOf(false) }
@@ -344,7 +224,7 @@ fun StatisticsScreen(
             }
 
             // Loading Overlay
-            if (state.isLoading || isSyncing) {
+            if (state.isLoading) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -554,6 +434,8 @@ fun ExerciseCurveChart(dailyStats: List<DailyStatItem>) {
     val maxCalories = dailyStats.maxOfOrNull { it.calories }?.takeIf { it > 0 } ?: 100
     val maxMinutes = dailyStats.maxOfOrNull { it.minutes }?.takeIf { it > 0 } ?: 60
     
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    
     val textPaint = remember {
         Paint().apply {
             color = android.graphics.Color.GRAY
@@ -565,7 +447,22 @@ fun ExerciseCurveChart(dailyStats: List<DailyStatItem>) {
 
     Canvas(modifier = Modifier
         .fillMaxWidth()
-        .height(200.dp)) {
+        .height(200.dp)
+        .pointerInput(Unit) {
+            detectTapGestures(
+                onTap = { offset ->
+                    val width = size.width
+                    val pointWidth = width / (dailyStats.size + 0.5f)
+                    val index = ((offset.x - pointWidth / 2) / pointWidth).roundToInt()
+                    if (index in dailyStats.indices) {
+                        selectedIndex = if (selectedIndex == index) null else index
+                    } else {
+                        selectedIndex = null
+                    }
+                }
+            )
+        }
+    ) {
         
         val width = size.width
         val height = size.height
@@ -653,36 +550,74 @@ fun ExerciseCurveChart(dailyStats: List<DailyStatItem>) {
                     item.date.format(DateTimeFormatter.ofPattern("MM-dd")),
                     x,
                     height - 10f,
-                    textPaint
+                    textPaint.apply { color = android.graphics.Color.GRAY; textSize = 24f; textAlign = Paint.Align.CENTER }
                 )
             }
             
-            // Draw Y-axis value (every point or sparse?)
-            // Draw value for max points or all points if not too crowded
-             if (showLabel) {
-                 val yCal = chartHeight - (item.calories.toFloat() / maxCalories * chartHeight)
-                 drawContext.canvas.nativeCanvas.drawText(
-                     "${item.calories}",
-                     x,
-                     yCal - 15f,
-                     textPaint.apply { textSize = 20f; color = "#B71C1C".toColorInt() } // BritishRed
+            // Tooltip for Selected Index
+            if (index == selectedIndex) {
+                 // Draw vertical line
+                 drawLine(
+                     color = Color.Gray.copy(alpha = 0.5f),
+                     start = Offset(x, 0f),
+                     end = Offset(x, chartHeight),
+                     strokeWidth = 1.dp.toPx(),
+                     pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
                  )
                  
-                 val yMin = chartHeight - (item.minutes.toFloat() / maxMinutes * chartHeight)
-                  // Offset yMin text if it overlaps with yCal
-                 val yMinTextY = if (Math.abs(yCal - yMin) < 40f) yMin + 35f else yMin - 15f
+                 // Draw Detail Box (Tooltip)
+                 val tooltipWidth = 260f
+                 val tooltipHeight = 130f
+                 val tooltipX = if (x + tooltipWidth > width) x - tooltipWidth - 20f else x + 20f
+                 val tooltipY = 10f
                  
-                 drawContext.canvas.nativeCanvas.drawText(
-                     "${item.minutes}",
-                     x,
-                     yMinTextY,
-                     textPaint.apply { textSize = 20f; color = "#E6A23C".toColorInt() } // Orange
+                 drawRoundRect(
+                     color = Color.White.copy(alpha = 0.95f),
+                     topLeft = Offset(tooltipX, tooltipY),
+                     size = androidx.compose.ui.geometry.Size(tooltipWidth, tooltipHeight),
+                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f)
+                 )
+                 drawRoundRect(
+                     color = Color.LightGray,
+                     topLeft = Offset(tooltipX, tooltipY),
+                     size = androidx.compose.ui.geometry.Size(tooltipWidth, tooltipHeight),
+                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f),
+                     style = Stroke(width = 1.dp.toPx())
                  )
                  
-                 // Reset paint
+                 // Text in Tooltip
+                 val dateStr = item.date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                 drawContext.canvas.nativeCanvas.drawText(
+                     dateStr,
+                     tooltipX + 20f,
+                     tooltipY + 40f,
+                     textPaint.apply { 
+                         textSize = 26f 
+                         color = android.graphics.Color.BLACK 
+                         textAlign = Paint.Align.LEFT
+                         typeface = Typeface.DEFAULT_BOLD
+                     }
+                 )
+                 
+                 drawContext.canvas.nativeCanvas.drawText(
+                     "热量: ${item.calories} Kcal",
+                     tooltipX + 20f,
+                     tooltipY + 75f,
+                     textPaint.apply { textSize = 24f; color = android.graphics.Color.DKGRAY; typeface = Typeface.DEFAULT }
+                 )
+                 
+                 drawContext.canvas.nativeCanvas.drawText(
+                     "时长: ${item.minutes} min",
+                     tooltipX + 20f,
+                     tooltipY + 105f,
+                     textPaint.apply { textSize = 24f; color = android.graphics.Color.DKGRAY }
+                 )
+                 
+                 // Reset Paint
                  textPaint.color = android.graphics.Color.GRAY
                  textPaint.textSize = 24f
-             }
+                 textPaint.textAlign = Paint.Align.CENTER
+            }
         }
         
         drawPath(
@@ -708,6 +643,8 @@ fun MoodCurveChart(dailyStats: List<DailyStatItem>) {
         return
     }
     
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    
     val textPaint = remember {
         Paint().apply {
             color = android.graphics.Color.GRAY
@@ -730,6 +667,20 @@ fun MoodCurveChart(dailyStats: List<DailyStatItem>) {
         .fillMaxWidth()
         .height(180.dp) // Increased height for better visibility
         .padding(start = 24.dp) // Padding for Y-axis
+        .pointerInput(Unit) {
+            detectTapGestures(
+                onTap = { offset ->
+                    val width = size.width
+                    val pointWidth = width / (dailyStats.size + 0.5f)
+                    val index = ((offset.x - pointWidth / 2) / pointWidth).roundToInt()
+                    if (index in dailyStats.indices) {
+                        selectedIndex = if (selectedIndex == index) null else index
+                    } else {
+                        selectedIndex = null
+                    }
+                }
+            )
+        }
     ) {
         
         val width = size.width
@@ -804,6 +755,65 @@ fun MoodCurveChart(dailyStats: List<DailyStatItem>) {
                     center = Offset(x, y),
                     radius = 3.dp.toPx()
                 )
+                
+                // Tooltip for Selected Index
+                if (index == selectedIndex) {
+                     // Draw vertical line
+                     drawLine(
+                         color = Color.Gray.copy(alpha = 0.5f),
+                         start = Offset(x, 0f),
+                         end = Offset(x, chartHeight),
+                         strokeWidth = 1.dp.toPx(),
+                         pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                     )
+                     
+                     // Draw Detail Box (Tooltip)
+                     val tooltipWidth = 240f
+                     val tooltipHeight = 120f
+                     val tooltipX = if (x + tooltipWidth > width) x - tooltipWidth - 20f else x + 20f
+                     val tooltipY = 10f
+                     
+                     drawRoundRect(
+                         color = Color.White.copy(alpha = 0.95f),
+                         topLeft = Offset(tooltipX, tooltipY),
+                         size = androidx.compose.ui.geometry.Size(tooltipWidth, tooltipHeight),
+                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f)
+                     )
+                     drawRoundRect(
+                         color = Color.LightGray,
+                         topLeft = Offset(tooltipX, tooltipY),
+                         size = androidx.compose.ui.geometry.Size(tooltipWidth, tooltipHeight),
+                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f),
+                         style = Stroke(width = 1.dp.toPx())
+                     )
+                     
+                     // Text in Tooltip
+                     val dateStr = item.date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                     drawContext.canvas.nativeCanvas.drawText(
+                         dateStr,
+                         tooltipX + 20f,
+                         tooltipY + 40f,
+                         textPaint.apply { 
+                             textSize = 26f 
+                             color = android.graphics.Color.BLACK 
+                             textAlign = Paint.Align.LEFT
+                             typeface = Typeface.DEFAULT_BOLD
+                         }
+                     )
+                     
+                     val moodIcon = moodIcons[item.mood] ?: "😊"
+                     drawContext.canvas.nativeCanvas.drawText(
+                         "$moodIcon ${item.mood}",
+                         tooltipX + 20f,
+                         tooltipY + 80f,
+                         textPaint.apply { textSize = 28f; color = android.graphics.Color.DKGRAY; typeface = Typeface.DEFAULT }
+                     )
+                     
+                     // Reset Paint
+                     textPaint.color = android.graphics.Color.GRAY
+                     textPaint.textSize = 24f
+                     textPaint.textAlign = Paint.Align.CENTER
+                }
             }
         }
         

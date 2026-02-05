@@ -6,19 +6,22 @@ import com.behealthy.app.core.database.dao.DailyActivityDao
 import com.behealthy.app.core.database.dao.FitnessPlanDao
 import com.behealthy.app.core.database.dao.FitnessTaskDao
 import com.behealthy.app.core.database.dao.MoodDao
+import com.behealthy.app.core.database.dao.HolidayDao
 import com.behealthy.app.core.database.entity.DailyActivityEntity
 import com.behealthy.app.core.database.entity.FitnessPlanEntity
 import com.behealthy.app.core.database.entity.FitnessTaskEntity
 import com.behealthy.app.core.database.entity.MoodRecordEntity
+import com.behealthy.app.core.database.entity.HolidayEntity
 
 @Database(
     entities = [
         FitnessPlanEntity::class,
         FitnessTaskEntity::class,
         MoodRecordEntity::class,
-        DailyActivityEntity::class
+        DailyActivityEntity::class,
+        HolidayEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class BeHealthyDatabase : RoomDatabase() {
@@ -26,4 +29,5 @@ abstract class BeHealthyDatabase : RoomDatabase() {
     abstract fun fitnessTaskDao(): FitnessTaskDao
     abstract fun moodDao(): MoodDao
     abstract fun dailyActivityDao(): DailyActivityDao
+    abstract fun holidayDao(): HolidayDao
 }

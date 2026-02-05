@@ -23,5 +23,6 @@ data class ProfileUiState(
     val birthdayReminderEnabled: Boolean = true,
     val avatarCropEnabled: Boolean = true,
     // 主题
-    val themeStyle: String = "Default"
+    val themeStyle: String = "Default",
+    val backgroundAlpha: Float = 0.3f
 )

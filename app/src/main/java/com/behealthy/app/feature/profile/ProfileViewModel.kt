@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.behealthy.app.data.repository.UserProfileRepository
 import com.behealthy.app.data.repository.AchievementRepository
-import com.behealthy.app.data.local.HealthDataSource
+import com.behealthy.app.core.database.dao.FitnessTaskDao
+import com.behealthy.app.core.database.dao.MoodDao
+import com.behealthy.app.core.logger.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -12,29 +14,50 @@ import com.behealthy.app.core.worker.SyncWorker
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val userProfileRepository: UserProfileRepository,
     private val achievementRepository: AchievementRepository,
-    private val healthDataSource: HealthDataSource,
+    private val fitnessTaskDao: FitnessTaskDao,
+    private val moodDao: MoodDao,
     private val workManager: WorkManager
 ) : ViewModel() {
     
     val uiState: StateFlow<ProfileUiState> = combine(
         userProfileRepository.userProfile,
         combine(
-            healthDataSource.totalWorkoutDays,
-            healthDataSource.totalMoodRecords,
-            healthDataSource.currentStreak,
-            healthDataSource.bestStreak,
-            healthDataSource.positiveMoodCount,
-            healthDataSource.negativeMoodCount
-        ) { stats ->
+            fitnessTaskDao.getAllTasks(),
+            moodDao.getAllMoods()
+        ) { tasks, moods ->
+            // Calculate stats from DB
+            val completedTasks = tasks.filter { it.isCompleted }
+            val workoutDays = completedTasks.map { it.date }.distinct().count()
+            val moodRecords = moods.size
+            
+            // Streak Calculation
+            val workoutDates = completedTasks.mapNotNull { 
+                try {
+                    LocalDate.parse(it.date, DateTimeFormatter.ISO_LOCAL_DATE)
+                } catch (e: Exception) { null }
+            }.distinct().sorted()
+            
+            val currentStreak = calculateCurrentStreak(workoutDates)
+            val bestStreak = calculateBestStreak(workoutDates) // Not storing best streak in DB yet, calculate dynamically
+            
+            val positiveCount = moods.count { it.mood in listOf("开心", "美滋滋", "小确幸", "激动", "平静", "享受", "心动", "冥想", "兴奋") }
+            val negativeCount = moods.count { it.mood in listOf("难过", "气愤", "倒霉", "焦虑", "恐惧", "累", "颓废", "委屈", "孤独", "生气", "难以描述", "懵圈") }
+            
             HealthStats(
-                stats[0] as Int, stats[1] as Int, stats[2] as Int, 
-                stats[3] as Int, stats[4] as Int, stats[5] as Int
+                workoutDays = workoutDays,
+                moodRecords = moodRecords,
+                streak = currentStreak,
+                bestStreak = bestStreak,
+                positiveCount = positiveCount,
+                negativeCount = negativeCount
             )
         },
         combine(
@@ -45,6 +68,9 @@ class ProfileViewModel @Inject constructor(
             AchievementStats(badges, birthdayReminder, avatarCrop)
         }
     ) { profile, healthStats, achievementStats ->
+        // Check for badge updates based on real stats
+        checkBadges(healthStats)
+        
         ProfileUiState(
             nickname = profile.nickname,
             birthday = profile.birthday,
@@ -64,7 +90,8 @@ class ProfileViewModel @Inject constructor(
             hasMoodMonthBadge = achievementStats.badges["mood_month"] ?: false,
             birthdayReminderEnabled = achievementStats.birthdayReminder,
             avatarCropEnabled = achievementStats.avatarCrop,
-            themeStyle = profile.themeStyle
+            themeStyle = profile.themeStyle,
+            backgroundAlpha = profile.backgroundAlpha
         )
     }
         .stateIn(
@@ -72,6 +99,56 @@ class ProfileViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = ProfileUiState()
         )
+
+    private fun calculateCurrentStreak(dates: List<LocalDate>): Int {
+        if (dates.isEmpty()) return 0
+        val today = LocalDate.now()
+        val yesterday = today.minusDays(1)
+        
+        // If no workout today or yesterday, streak is 0
+        if (!dates.contains(today) && !dates.contains(yesterday)) return 0
+        
+        var streak = 0
+        var current = if (dates.contains(today)) today else yesterday
+        
+        while (dates.contains(current)) {
+            streak++
+            current = current.minusDays(1)
+        }
+        return streak
+    }
+    
+    private fun calculateBestStreak(dates: List<LocalDate>): Int {
+        if (dates.isEmpty()) return 0
+        var maxStreak = 0
+        var currentStreak = 0
+        var prevDate: LocalDate? = null
+        
+        for (date in dates) {
+            if (prevDate == null) {
+                currentStreak = 1
+            } else {
+                if (ChronoUnit.DAYS.between(prevDate, date) == 1L) {
+                    currentStreak++
+                } else if (ChronoUnit.DAYS.between(prevDate, date) > 1L) {
+                    currentStreak = 1
+                }
+            }
+            if (currentStreak > maxStreak) maxStreak = currentStreak
+            prevDate = date
+        }
+        return maxStreak
+    }
+    
+    private fun checkBadges(stats: HealthStats) {
+        viewModelScope.launch {
+            if (stats.workoutDays >= 1) achievementRepository.unlockBadge("first_workout")
+            if (stats.streak >= 7) achievementRepository.unlockBadge("7_day_streak")
+            if (stats.streak >= 30) achievementRepository.unlockBadge("30_day_streak")
+            if (stats.workoutDays >= 100) achievementRepository.unlockBadge("100_workouts")
+            // Logic for other badges can be refined
+        }
+    }
 
     private data class HealthStats(
         val workoutDays: Int,
@@ -164,6 +241,12 @@ class ProfileViewModel @Inject constructor(
     fun updateThemeStyle(style: String) {
         viewModelScope.launch {
             userProfileRepository.updateThemeStyle(style)
+        }
+    }
+    
+    fun updateBackgroundAlpha(alpha: Float) {
+        viewModelScope.launch {
+            userProfileRepository.updateBackgroundAlpha(alpha)
         }
     }
     

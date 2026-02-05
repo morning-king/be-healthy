@@ -169,6 +169,9 @@ class HealthConnectManager @Inject constructor(
                 distanceMeters = distance.toInt(),
                 durationMinutes = durationMinutes
             )
+        } catch (e: SecurityException) {
+            AppLogger.log("HealthConnect", "Security Exception (Likely background access denied): ${e.message}")
+            null
         } catch (e: Exception) {
             android.util.Log.e("HealthConnect", "Error getting daily activity for $date", e)
             e.printStackTrace()

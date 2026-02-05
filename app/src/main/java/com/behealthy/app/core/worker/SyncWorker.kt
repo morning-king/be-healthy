@@ -55,6 +55,7 @@ class SyncWorker @AssistedInject constructor(
                 var distance = 0
                 var duration = 0
                 
+                var dataFound = false
                 if (hasHcPermissions) {
                     val hcData = healthConnectManager.getDailyActivity(currentDate)
                     if (hcData != null) {
@@ -63,14 +64,14 @@ class SyncWorker @AssistedInject constructor(
                         distance = hcData.distanceMeters
                         duration = hcData.durationMinutes
                         AppLogger.log("SyncWorker", "Fetched from HealthConnect for $dateStr: Steps=$steps, Cal=$calories")
+                        dataFound = true
                     } else {
                         AppLogger.log("SyncWorker", "HealthConnect returned null for $dateStr")
                     }
                 }
                 
-                // Fallback to OPPO Service if HC data is empty (and we don't trust it being 0 if permission missing)
-                // However, if HC permission is granted and returns 0, it means 0.
-                if (!hasHcPermissions && steps == 0) {
+                // Fallback to OPPO Service if HC data is empty/null
+                if (!dataFound) {
                      try {
                         val data = oppoHealthService.getDailyActivity(dateStr)
                         steps = data.steps

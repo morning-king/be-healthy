@@ -43,7 +43,9 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.WbSunny
 import java.time.temporal.WeekFields
 import java.util.Locale
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,14 +56,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.ImeAction
+import com.behealthy.app.ui.TypewriterText
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.activity.compose.BackHandler
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -70,26 +74,58 @@ import coil.ImageLoader
 import com.behealthy.app.core.database.entity.FitnessTaskEntity
 import com.behealthy.app.core.database.entity.DailyActivityEntity
 import com.behealthy.app.ui.RunningLoading
-import com.kizitonwose.calendar.compose.HorizontalCalendar
-import com.kizitonwose.calendar.compose.rememberCalendarState
-import com.kizitonwose.calendar.core.CalendarDay
-import com.kizitonwose.calendar.core.DayPosition
 import com.kizitonwose.calendar.core.firstDayOfWeekFromLocale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.io.FileOutputStream
+import java.io.File
+import java.util.UUID
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.util.UUID
-
 import com.behealthy.app.core.repository.SportsData
+import com.behealthy.app.core.network.HolidayDetail
+
 import com.behealthy.app.core.repository.WeatherInfo
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.window.DialogProperties
+
+import androidx.compose.foundation.pager.PagerState
+import java.time.DayOfWeek
+
+// Helper to generate days for the grid
+fun getMonthGridDays(yearMonth: YearMonth, firstDayOfWeek: DayOfWeek): List<LocalDate?> {
+    val firstDayOfMonth = yearMonth.atDay(1)
+    val daysInMonth = yearMonth.lengthOfMonth()
+    
+    // Calculate start padding (empty cells before 1st day)
+    // firstDayOfWeek value: 1 (Mon) to 7 (Sun)
+    // If grid starts on Mon (1):
+    //   1st is Mon (1) -> padding 0
+    //   1st is Tue (2) -> padding 1
+    // Padding = (dayOfWeek - firstDayOfWeek + 7) % 7
+    val startPadding = (firstDayOfMonth.dayOfWeek.value - firstDayOfWeek.value + 7) % 7
+    
+    val grid = mutableListOf<LocalDate?>()
+    
+    // Add padding
+    repeat(startPadding) { grid.add(null) }
+    
+    // Add actual days
+    for (i in 1..daysInMonth) {
+        grid.add(yearMonth.atDay(i))
+    }
+    
+    // Optional: Add end padding to fill the last row (up to multiple of 7)
+    while (grid.size % 7 != 0) {
+        grid.add(null)
+    }
+    
+    return grid
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,16 +134,13 @@ fun CalendarScreen(
     viewModel: TaskViewModel = hiltViewModel()
 ) {
     val currentMonth = remember { YearMonth.now() }
-    val startMonth = remember { currentMonth.minusMonths(12) }
-    val endMonth = remember { currentMonth.plusMonths(12) }
+    val startMonth = remember { currentMonth.minusMonths(120) } // Increased range
+    val endMonth = remember { currentMonth.plusMonths(120) }
     val firstDayOfWeek = remember { firstDayOfWeekFromLocale() }
 
-    val state = rememberCalendarState(
-        startMonth = startMonth,
-        endMonth = endMonth,
-        firstVisibleMonth = currentMonth,
-        firstDayOfWeek = firstDayOfWeek
-    )
+    // Use Pager instead of Calendar library
+    val initialPage = 120 // Center (matches minusMonths(120))
+    val pagerState = rememberPagerState(initialPage = initialPage) { 241 } // 120 + 1 + 120
 
     val selectedDate by viewModel.selectedDate.collectAsState()
     val tasksForSelectedDate by viewModel.tasksForSelectedDate.collectAsState()
@@ -115,6 +148,7 @@ fun CalendarScreen(
     val quote by viewModel.dailyQuote.collectAsState()
     val sportsData by viewModel.currentSportsData.collectAsState()
     val dailyActivity by viewModel.dailyActivityForSelectedDate.collectAsState()
+    val holidays by viewModel.holidaysForCurrentYear.collectAsState()
     
     // Sync Feedback
     val syncMessage by viewModel.syncMessage.collectAsState()
@@ -158,27 +192,78 @@ fun CalendarScreen(
         label = "fab_rotation"
     )
 
-    LaunchedEffect(state.firstVisibleMonth) {
-        viewModel.updateMonth(state.firstVisibleMonth.yearMonth)
+    // Calculate currently visible month based on pager
+    val visibleMonth = remember(pagerState.currentPage) {
+        currentMonth.plusMonths((pagerState.currentPage - initialPage).toLong())
+    }
+
+    LaunchedEffect(visibleMonth) {
+        viewModel.updateMonth(visibleMonth)
+    }
+
+    // Achievement Overlay Logic
+    var achievementToShow by remember { mutableStateOf<TaskViewModel.SubmissionAchievement?>(null) }
+    LaunchedEffect(viewModel) {
+        viewModel.submissionAchievement.collect { value ->
+            achievementToShow = value
+        }
+    }
+    
+    // Check if "Today" is visible or selected
+    val isTodayVisible = remember(visibleMonth, selectedDate) {
+        val today = LocalDate.now()
+        val isCurrentMonth = YearMonth.from(today) == visibleMonth
+        val isTodaySelected = selectedDate == today
+        isCurrentMonth && isTodaySelected
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    isFabRotated = !isFabRotated
-                    onAddPlanClick()
-                },
-                containerColor = MaterialTheme.colorScheme.primary,
-                shape = CircleShape,
-                modifier = Modifier.padding(bottom = 20.dp)
-            ) {
-                Icon(
-                    Icons.Default.Add, 
-                    contentDescription = "Add Plan", 
-                    tint = Color.White,
-                    modifier = Modifier.rotate(fabRotation)
-                )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // "Back to Today" Button
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = !isTodayVisible,
+                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it / 2 },
+                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { it / 2 }
+                ) {
+                    FloatingActionButton(
+                        onClick = {
+                            val today = LocalDate.now()
+                            // Scroll Pager to Today's Month
+                            val diffMonths = YearMonth.from(today).monthValue - currentMonth.monthValue + 
+                                            (YearMonth.from(today).year - currentMonth.year) * 12
+                            val targetPage = initialPage + diffMonths
+                            scope.launch {
+                                pagerState.animateScrollToPage(targetPage)
+                                viewModel.updateSelectedDate(today)
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(bottom = 16.dp).size(48.dp),
+                        shape = CircleShape
+                    ) {
+                        Text("今", fontWeight = FontWeight.Bold)
+                    }
+                }
+                
+                FloatingActionButton(
+                    onClick = {
+                        isFabRotated = !isFabRotated
+                        onAddPlanClick()
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    shape = CircleShape,
+                    modifier = Modifier.padding(bottom = 20.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Add, 
+                        contentDescription = "Add Plan", 
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.rotate(fabRotation)
+                    )
+                }
             }
         }
     ) { padding ->
@@ -186,7 +271,6 @@ fun CalendarScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
         ) {
             // Header
             Row(
@@ -196,7 +280,7 @@ fun CalendarScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${state.firstVisibleMonth.yearMonth.year}年${state.firstVisibleMonth.yearMonth.monthValue}月",
+                    text = "${visibleMonth.year}年${visibleMonth.monthValue}月",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -244,9 +328,16 @@ fun CalendarScreen(
                                 "Snowy" -> "❄️"
                                 else -> "🌥️"
                             }
+                            val conditionText = when(w.condition.name) {
+                                "Sunny" -> "晴"
+                                "Cloudy" -> "多云"
+                                "Rainy" -> "雨"
+                                "Snowy" -> "雪"
+                                else -> "阴"
+                            }
                             Text(icon, style = MaterialTheme.typography.bodyMedium)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("${w.condition.name} ${w.temperature}°C", style = MaterialTheme.typography.labelSmall)
+                            Text("$conditionText ${w.temperature}°C", style = MaterialTheme.typography.labelSmall)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(w.location, style = MaterialTheme.typography.labelSmall)
                         }
@@ -263,30 +354,94 @@ fun CalendarScreen(
                 val summaryHeight = maxHeight * 0.28f
                 val quoteHeight = maxHeight * 0.22f
                 Column(modifier = Modifier.fillMaxSize()) {
-                    HorizontalCalendar(
-                        state = state,
-                        dayContent = { day ->
-                            val dateStr = day.date.format(DateTimeFormatter.ISO_LOCAL_DATE)
-                            val status = dayStatusMap[dateStr] ?: 0
-                            val weatherInfo = monthlyWeather[day.date]
-                            
-                            Day(
-                                day = day, 
-                                isSelected = selectedDate == day.date,
-                                isToday = day.date == LocalDate.now(),
-                                status = status,
-                                weather = weatherInfo
-                            ) { date ->
-                                viewModel.updateSelectedDate(date)
-                                showBottomSheet = true
-                            }
-                        },
+                    
+                    // Month Pager
+                    HorizontalPager(
+                        state = pagerState,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(calendarHeight)
-                            .padding(horizontal = 8.dp)
-                            .padding(bottom = 4.dp)
-                    )
+                    ) { page ->
+                        val pageMonth = currentMonth.plusMonths((page - initialPage).toLong())
+                        val days = remember(pageMonth) { getMonthGridDays(pageMonth, firstDayOfWeek) }
+                        
+                        // Month Grid
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 8.dp)
+                        ) {
+                            // Weekday Headers
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                for (i in 0..6) {
+                                    val dayOfWeek = firstDayOfWeek.plus(i.toLong())
+                                    Text(
+                                        text = dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()),
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Days Grid
+                            // Use weight to distribute height evenly among rows, avoiding overflow
+                            Column(modifier = Modifier.weight(1f)) {
+                                val weeks = days.chunked(7)
+                                weeks.forEach { week ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f)
+                                    ) {
+                                        week.forEach { date ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (date != null) {
+                                                    val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                                                    val status = dayStatusMap[dateStr] ?: 0
+                                                    val weatherInfo = monthlyWeather[date]
+                                                    val holidayDetail = holidays[dateStr.substring(5)]
+                                                    
+                                                    Day(
+                                                        date = date, 
+                                                        isSelected = selectedDate == date,
+                                                        isToday = date == LocalDate.now(),
+                                                        status = status,
+                                                        weather = weatherInfo,
+                                                        holidayDetail = holidayDetail
+                                                    ) { d ->
+                                                        viewModel.updateSelectedDate(d)
+                                                        showBottomSheet = true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        // Fill remaining cells in the row if week is incomplete
+                                        if (week.size < 7) {
+                                            repeat(7 - week.size) {
+                                                Box(modifier = Modifier.weight(1f))
+                                            }
+                                        }
+                                    }
+                                }
+                                // If fewer than 6 rows, add spacers to keep grid size consistent or just let it fill?
+                                // To keep cells roughly square-ish or consistent height, we can fill remaining space.
+                                // However, `weight(1f)` on existing rows will expand them.
+                                // If we want to prevent expansion (keep them top-aligned), we shouldn't use weight on rows in a column that fills height.
+                                // But the user wants to "adjust height to not overflow", implying squeezing.
+                                // So distributing available height (weight) is the correct approach for handling 6 rows.
+                                // For 5 rows, they will be slightly taller, which is fine.
+                            }
+                        }
+                    }
                     
                     Card(
                         modifier = Modifier
@@ -316,12 +471,13 @@ fun CalendarScreen(
                                 }
                             }
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(
+                            TypewriterText(
                                 text = quote.content, 
                                 style = MaterialTheme.typography.bodyLarge, 
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                rainbow = true
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
@@ -335,7 +491,7 @@ fun CalendarScreen(
                     }
                     
                     FitnessMonthlyStats(
-                        currentMonth = state.firstVisibleMonth.yearMonth,
+                        currentMonth = visibleMonth,
                         tasks = tasksForCurrentMonth,
                         modifier = Modifier.height(summaryHeight)
                     )
@@ -358,9 +514,21 @@ fun CalendarScreen(
                     onClose = { 
                         scope.launch { sheetState.hide() }
                         showBottomSheet = false
+                    },
+                    onSaveAndComplete = { task -> 
+                        viewModel.saveAndCompleteTask(task)
+                        scope.launch { sheetState.hide() }
+                        showBottomSheet = false
                     }
                 )
             }
+        }
+        
+        if (achievementToShow != null) {
+            AchievementOverlay(
+                achievement = achievementToShow!!,
+                onDismiss = { achievementToShow = null }
+            )
         }
     }
 }
@@ -411,7 +579,7 @@ fun FitnessMonthlyStats(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
     ) {
         Column(
             modifier = Modifier
@@ -477,7 +645,7 @@ fun MediaSection(
                         modifier = Modifier
                             .size(100.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.LightGray)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .clickable { onMediaClick(path) }
                     ) {
                         val context = LocalContext.current
@@ -621,35 +789,43 @@ suspend fun copyUriToInternalStorage(context: Context, uri: Uri, type: String): 
 
 @Composable
 fun Day(
-    day: CalendarDay,
+    date: LocalDate,
     isSelected: Boolean,
     isToday: Boolean,
     status: Int,
     weather: WeatherInfo?,
+    holidayDetail: HolidayDetail?,
     onClick: (LocalDate) -> Unit
 ) {
     Box(
         modifier = Modifier
-            .height(56.dp)
-            .aspectRatio(1f)
-            .padding(1.dp)
-            .clip(CircleShape)
-            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-            .border(
-                width = if (isToday) 2.dp else 0.dp,
-                color = if (isToday) MaterialTheme.colorScheme.primary else Color.Transparent,
-                shape = CircleShape
-            )
-            .clickable(enabled = true) { onClick(day.date) },
+            .fillMaxSize() // Use fillMaxSize to adapt to container
+            .padding(1.dp),
         contentAlignment = Alignment.Center
     ) {
+        // Background Circle (Constrained by smallest dimension)
+        Box(
+            modifier = Modifier
+                .aspectRatio(1f) // Ensure it's a circle/square
+                .fillMaxHeight() // Try to fill height
+                .clip(CircleShape)
+                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                .border(
+                    width = if (isToday) 2.dp else 0.dp,
+                    color = if (isToday) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    shape = CircleShape
+                )
+                .clickable(enabled = true) { onClick(date) }
+        )
+        
+        // Content
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (day.date.dayOfMonth == 1) {
+            if (date.dayOfMonth == 1) {
                 Text(
-                    text = "${day.date.monthValue}月",
+                    text = "${date.monthValue}月",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -657,7 +833,7 @@ fun Day(
             }
             
             Text(
-                text = day.date.dayOfMonth.toString(),
+                text = date.dayOfMonth.toString(),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                 color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
@@ -665,7 +841,7 @@ fun Day(
             
             // Status Dot
             if (status > 0) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Box(
                     modifier = Modifier
                         .size(6.dp)
@@ -673,9 +849,9 @@ fun Day(
                         .background(
                             when (status) {
                                 1 -> MaterialTheme.colorScheme.error // Todo
-                                2 -> Color(0xFFFFA500) // Doing (Orange)
-                                3 -> Color(0xFF4CAF50) // Done (Green)
-                                4 -> Color(0xFFFFD700) // Exceeded (Gold)
+                                2 -> Color(0xFFFB8C00) // Doing (Deep Orange)
+                                3 -> Color(0xFF43A047) // Done (Green)
+                                4 -> Color(0xFFFBC02D) // Exceeded (Darker Gold)
                                 else -> Color.Transparent
                             }
                         )
@@ -684,7 +860,7 @@ fun Day(
             
             // Weather Icon (Small)
             weather?.let { w ->
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(1.dp))
                 val icon = when(w.condition.name) {
                     "Sunny" -> "☀️"
                     "Cloudy" -> "☁️"
@@ -692,9 +868,31 @@ fun Day(
                     "Snowy" -> "❄️"
                     else -> "🌥️"
                 }
-                Text(text = icon, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                Text(text = icon, style = MaterialTheme.typography.labelSmall, fontSize = 8.sp)
             }
         }
+
+        // Holiday/Work Tag (Top Right)
+    if (holidayDetail != null) {
+        val text = if (holidayDetail.holiday) "休" else "班"
+        val color = if (holidayDetail.holiday) Color(0xFF9C27B0) else Color(0xFFFF9800)
+        
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 8.sp,
+            color = color,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 2.dp, end = 4.dp)
+        )
+    } else {
+        // Fallback to old HolidayUtils if null? No, we deleted it.
+        // Just check if we still have the old block here.
+        // The grep showed the file still had HolidayUtils reference in the error log.
+        // "val holidayStatus = remember(date) { HolidayUtils.getHolidayStatus(date) }"
+        // So I need to remove that block if it exists.
+    }
     }
 }
 
@@ -704,7 +902,8 @@ fun TaskDetailSheet(
     selectedDate: LocalDate,
     viewModel: TaskViewModel,
     onClose: () -> Unit,
-    onDateChange: (LocalDate) -> Unit
+    onDateChange: (LocalDate) -> Unit,
+    onSaveAndComplete: (FitnessTaskEntity) -> Unit
 ) {
     BackHandler(onBack = onClose)
     
@@ -766,7 +965,7 @@ fun TaskDetailSheet(
             .fillMaxWidth()
             .fillMaxHeight(0.9f)
             .navigationBarsPadding() // Handle bottom nav bar overlap
-            .imePadding() // Handle keyboard overlap
+            // Removed imePadding from root to prevent whole sheet jumping
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Header (Date only, no buttons)
@@ -805,8 +1004,15 @@ fun TaskDetailSheet(
                                 "Snowy" -> "❄️"
                                 else -> "🌥️"
                             }
+                            val conditionText = when(w.condition.name) {
+                                "Sunny" -> "晴"
+                                "Cloudy" -> "多云"
+                                "Rainy" -> "雨"
+                                "Snowy" -> "雪"
+                                else -> "阴"
+                            }
                             Text(
-                                text = "$icon ${w.condition.name} ${w.temperature}°C ${w.location}",
+                                text = "$icon $conditionText ${w.temperature}°C ${w.location}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -862,7 +1068,8 @@ fun TaskDetailSheet(
                         } else {
                             LazyColumn(
                                 contentPadding = PaddingValues(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.imePadding() // Apply imePadding here to push list up
                             ) {
                                 items(
                                     items = tasks,
@@ -872,6 +1079,7 @@ fun TaskDetailSheet(
                                         task = task, 
                                         isLoading = viewModel.isLoading.collectAsState().value,
                                         onUpdate = { viewModel.updateTask(it) },
+                                        onSaveAndComplete = onSaveAndComplete,
                                         onPickImage = { callback ->
                                             pendingMediaCallback = callback
                                             imageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -943,6 +1151,7 @@ fun TaskDetailItem(
     task: FitnessTaskEntity, 
     isLoading: Boolean,
     onUpdate: (FitnessTaskEntity) -> Unit,
+    onSaveAndComplete: (FitnessTaskEntity) -> Unit,
     onPickImage: (((List<String>) -> Unit) -> Unit)? = null,
     onPickVideo: (((List<String>) -> Unit) -> Unit)? = null
 ) {
@@ -953,8 +1162,7 @@ fun TaskDetailItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .animateContentSize(),
+            .padding(vertical = 4.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
@@ -1073,34 +1281,46 @@ fun TaskDetailItem(
                 }
             } else {
                 // Expanded View (Input Fields)
-                // Duration Slider
-                Text("时长 (分钟)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                Slider(
-                    value = (if (task.workExerciseMinutes > 0) task.workExerciseMinutes.toFloat() else 30f),
-                    onValueChange = { /* Display only */ },
-                    valueRange = 0f..180f,
-                    enabled = false, 
-                    colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                // Local state for editing
+                var minutesInput by remember(task.id) { mutableStateOf(task.workExerciseMinutes.toString()) }
+                var stepsInput by remember(task.id) { mutableStateOf(task.workExerciseSteps.toString()) }
+                var caloriesInput by remember(task.id) { mutableStateOf(task.workExerciseCalories.toString()) }
+                var noteInput by remember(task.id) { mutableStateOf(task.note) }
+                
+                var imagesInput by remember(task.id) { mutableStateOf(task.checkInImages.split(",").filter { it.isNotEmpty() }) }
+                var videosInput by remember(task.id) { mutableStateOf(task.checkInVideos.split(",").filter { it.isNotEmpty() }) }
+
+                val focusRequester = remember { FocusRequester() }
+                
+                LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
+                }
+
+                // Duration Input
+                OutlinedTextField(
+                    value = minutesInput,
+                    onValueChange = { minutesInput = it },
+                    label = { Text("时长 (分钟)") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    )
                 )
-                Text(
-                    text = "${task.workExerciseMinutes}", 
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Steps Input
                 OutlinedTextField(
-                    value = "${task.workExerciseSteps}",
-                    onValueChange = { 
-                        if (it.all { char -> char.isDigit() }) {
-                             onUpdate(task.copy(workExerciseSteps = it.toIntOrNull() ?: 0))
-                        }
-                    },
+                    value = stepsInput,
+                    onValueChange = { stepsInput = it },
                     label = { Text("步数") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
@@ -1110,16 +1330,12 @@ fun TaskDetailItem(
                 
                 // Calories Input
                 OutlinedTextField(
-                    value = "${task.workExerciseCalories}",
-                    onValueChange = { 
-                         if (it.all { char -> char.isDigit() }) {
-                             onUpdate(task.copy(workExerciseCalories = it.toIntOrNull() ?: 0))
-                        }
-                    },
+                    value = caloriesInput,
+                    onValueChange = { caloriesInput = it },
                     label = { Text("消耗 (千卡)") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
@@ -1129,8 +1345,8 @@ fun TaskDetailItem(
                 
                 // Note Input
                 OutlinedTextField(
-                    value = task.note,
-                    onValueChange = { onUpdate(task.copy(note = it)) },
+                    value = noteInput,
+                    onValueChange = { noteInput = it },
                     label = { Text("备注") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -1144,38 +1360,32 @@ fun TaskDetailItem(
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 // Media Section
-                val images = task.checkInImages.split(",").filter { it.isNotEmpty() }.toMutableList()
                 MediaSection(
                     title = "打卡图片",
-                    mediaList = images,
+                    mediaList = imagesInput,
                     isVideo = false,
                     maxCount = 5,
                     onAddMedia = { onPickImage?.invoke { newPaths ->
-                        val updated = (images + newPaths).take(5).joinToString(",")
-                        onUpdate(task.copy(checkInImages = updated))
+                        imagesInput = (imagesInput + newPaths).take(5)
                     }},
                     onRemoveMedia = { path ->
-                        images.remove(path)
-                        onUpdate(task.copy(checkInImages = images.joinToString(",")))
+                        imagesInput = imagesInput - path
                     },
                     onMediaClick = { previewImage = it }
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                val videos = task.checkInVideos.split(",").filter { it.isNotEmpty() }.toMutableList()
                 MediaSection(
                     title = "打卡视频",
-                    mediaList = videos,
+                    mediaList = videosInput,
                     isVideo = true,
                     maxCount = 3,
                     onAddMedia = { onPickVideo?.invoke { newPaths ->
-                        val updated = (videos + newPaths).take(3).joinToString(",")
-                        onUpdate(task.copy(checkInVideos = updated))
+                        videosInput = (videosInput + newPaths).take(3)
                     }},
                     onRemoveMedia = { path ->
-                        videos.remove(path)
-                        onUpdate(task.copy(checkInVideos = videos.joinToString(",")))
+                        videosInput = videosInput - path
                     },
                     onMediaClick = { previewVideo = it }
                 )
@@ -1184,12 +1394,30 @@ fun TaskDetailItem(
                 
                 // Save Button (Collapses expanded view)
                 Button(
-                    onClick = { isExpanded = false },
+                    onClick = { 
+                        val updatedTask = task.copy(
+                            workExerciseMinutes = minutesInput.toIntOrNull() ?: 0,
+                            workExerciseSteps = stepsInput.toIntOrNull() ?: 0,
+                            workExerciseCalories = caloriesInput.toIntOrNull() ?: 0,
+                            note = noteInput,
+                            checkInImages = imagesInput.joinToString(","),
+                            checkInVideos = videosInput.joinToString(",")
+                        )
+                        onSaveAndComplete(updatedTask)
+                        isExpanded = false 
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    enabled = !isLoading
                 ) {
-                    Text("完成编辑")
+                    if (isLoading) {
+                        RunningLoading(size = 20.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("保存中...")
+                    } else {
+                        Text("保存并完成")
+                    }
                 }
             }
         }
@@ -1215,7 +1443,7 @@ fun MediaThumbnail(path: String, isVideo: Boolean, size: androidx.compose.ui.uni
         modifier = Modifier
             .size(size)
             .clip(RoundedCornerShape(4.dp))
-            .background(Color.LightGray)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onClick() }
     ) {
          val context = LocalContext.current

@@ -15,7 +15,8 @@ data class UserProfile(
     val totalWorkoutDays: Int = 0,
     val totalMoodRecords: Int = 0,
     val currentStreak: Int = 0,
-    val themeStyle: String = "Default"
+    val themeStyle: String = "Default",
+    val backgroundAlpha: Float = 0.3f
 )
 
 @Singleton
@@ -36,9 +37,10 @@ class UserProfileRepository @Inject constructor(
             dataSource.totalWorkoutDays,
             dataSource.totalMoodRecords,
             dataSource.currentStreak,
-            dataSource.themeStyle
-        ) { totalWorkoutDays, totalMoodRecords, currentStreak, themeStyle ->
-            UserProfileStats(totalWorkoutDays, totalMoodRecords, currentStreak, themeStyle)
+            dataSource.themeStyle,
+            dataSource.backgroundAlpha
+        ) { totalWorkoutDays, totalMoodRecords, currentStreak, themeStyle, backgroundAlpha ->
+            UserProfileStats(totalWorkoutDays, totalMoodRecords, currentStreak, themeStyle, backgroundAlpha)
         }
     ) { partial, stats ->
         UserProfile(
@@ -49,7 +51,8 @@ class UserProfileRepository @Inject constructor(
             totalWorkoutDays = stats.totalWorkoutDays,
             totalMoodRecords = stats.totalMoodRecords,
             currentStreak = stats.currentStreak,
-            themeStyle = stats.themeStyle
+            themeStyle = stats.themeStyle,
+            backgroundAlpha = stats.backgroundAlpha
         )
     }
 
@@ -64,7 +67,8 @@ class UserProfileRepository @Inject constructor(
         val totalWorkoutDays: Int,
         val totalMoodRecords: Int,
         val currentStreak: Int,
-        val themeStyle: String
+        val themeStyle: String,
+        val backgroundAlpha: Float
     )
     
     suspend fun updateNickname(nickname: String) {
@@ -93,5 +97,9 @@ class UserProfileRepository @Inject constructor(
 
     suspend fun updateThemeStyle(style: String) {
         dataSource.updateThemeStyle(style)
+    }
+    
+    suspend fun updateBackgroundAlpha(alpha: Float) {
+        dataSource.updateBackgroundAlpha(alpha)
     }
 }

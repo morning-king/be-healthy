@@ -43,4 +43,8 @@ class FitnessTaskRepository @Inject constructor(
         val completed = fitnessTaskDao.getCompletedTaskCount(planId)
         return Pair(completed, total)
     }
+
+    suspend fun getCompletedTasksHistory(): List<FitnessTaskEntity> {
+        return fitnessTaskDao.getCompletedTasksHistory()
+    }
 }

@@ -21,4 +21,12 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = "Default"
         )
+    
+    val backgroundAlpha = userProfileRepository.userProfile
+        .map { it.backgroundAlpha }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = 0.3f
+        )
 }

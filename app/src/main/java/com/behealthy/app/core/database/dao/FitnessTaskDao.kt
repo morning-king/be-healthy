@@ -37,4 +37,7 @@ interface FitnessTaskDao {
 
     @Query("SELECT COUNT(*) FROM fitness_tasks WHERE planId = :planId AND isCompleted = 1")
     suspend fun getCompletedTaskCount(planId: Long): Int
+
+    @Query("SELECT * FROM fitness_tasks WHERE isCompleted = 1 ORDER BY date DESC")
+    suspend fun getCompletedTasksHistory(): List<FitnessTaskEntity>
 }

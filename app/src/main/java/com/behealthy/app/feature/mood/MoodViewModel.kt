@@ -19,12 +19,15 @@ import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
 
+import com.behealthy.app.data.repository.HolidayRepository
+
 data class Poem(val content: String, val author: String)
 
 @HiltViewModel
 class MoodViewModel @Inject constructor(
     private val moodRepository: MoodRepository,
-    private val weatherRepository: com.behealthy.app.core.repository.WeatherRepository
+    private val weatherRepository: com.behealthy.app.core.repository.WeatherRepository,
+    private val holidayRepository: HolidayRepository
 ) : ViewModel() {
 
     private val _refreshTrigger = MutableStateFlow(0)
@@ -44,6 +47,12 @@ class MoodViewModel @Inject constructor(
     val selectedDate: StateFlow<LocalDate> = _selectedDate
 
     private val _currentMonth = MutableStateFlow(YearMonth.now())
+    
+    val holidaysForCurrentYear = _currentMonth.flatMapLatest { month ->
+        flow {
+            emit(holidayRepository.getHolidaysForYear(month.year))
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val weatherForSelectedDate = combine(_selectedDate, _weatherRefreshTrigger) { date, _ -> date }
         .flatMapLatest { date ->

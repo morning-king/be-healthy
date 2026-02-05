@@ -69,6 +69,8 @@ fun MainApp(
 ) {
     val rootNavController = rememberNavController()
     val themeStyleName by viewModel.themeStyle.collectAsState()
+    val backgroundAlpha by viewModel.backgroundAlpha.collectAsState()
+    
     val themeStyle = try {
         ThemeStyle.valueOf(themeStyleName)
     } catch (e: Exception) {
@@ -76,11 +78,16 @@ fun MainApp(
     }
 
     BeHealthyTheme(themeStyle = themeStyle) {
-        NavHost(
-            navController = rootNavController,
-            startDestination = "home",
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Layer 1: Dynamic Background
+            DynamicThemeBackground(theme = themeStyle, alpha = backgroundAlpha)
+            
+            // Layer 2: App Content
+            NavHost(
+                navController = rootNavController,
+                startDestination = "home",
+                modifier = Modifier.fillMaxSize()
+            ) {
             composable("splash") {
                 SplashScreen(
                     onTimeout = {
@@ -112,6 +119,7 @@ fun MainApp(
                 )
             }
         }
+        } // End Box
     }
 }
 
@@ -145,10 +153,112 @@ fun ThemedIcon(
                 Canvas(modifier = Modifier.size(24.dp)) {
                    rotate(45f) {
                        drawRect(Color(0xFFD32F2F), topLeft = Offset(size.width * 0.15f, size.height * 0.15f), size = androidx.compose.ui.geometry.Size(size.width * 0.7f, size.height * 0.7f))
-                       drawRect(Color(0xFFFFD700), topLeft = Offset(size.width * 0.15f, size.height * 0.15f), size = androidx.compose.ui.geometry.Size(size.width * 0.7f, size.height * 0.7f), style = Stroke(1.dp.toPx()))
+                       drawRect(Color(0xFFFFB300), topLeft = Offset(size.width * 0.15f, size.height * 0.15f), size = androidx.compose.ui.geometry.Size(size.width * 0.7f, size.height * 0.7f), style = Stroke(1.dp.toPx()))
                    }
                 }
-                Icon(icon, contentDescription, tint = Color(0xFFFFD700), modifier = Modifier.scale(0.6f))
+                Icon(icon, contentDescription, tint = Color(0xFFFFB300), modifier = Modifier.scale(0.6f))
+            }
+        }
+        ThemeStyle.Doraemon -> {
+            Box(contentAlignment = Alignment.Center) {
+                Canvas(modifier = Modifier.size(24.dp)) {
+                    drawCircle(Color(0xFF0093DD))
+                    // Red Collar (Bottom arc)
+                    drawArc(
+                        color = Color(0xFFDD0000),
+                        startAngle = 20f,
+                        sweepAngle = 140f,
+                        useCenter = false,
+                        topLeft = Offset(0f, size.height * 0.1f),
+                        size = androidx.compose.ui.geometry.Size(size.width, size.height * 0.8f),
+                        style = Stroke(width = 2.dp.toPx())
+                    )
+                }
+                Icon(icon, contentDescription, tint = Color.White, modifier = Modifier.scale(0.6f))
+            }
+        }
+        ThemeStyle.Minions -> {
+             Box(contentAlignment = Alignment.Center) {
+                Canvas(modifier = Modifier.size(24.dp)) {
+                    drawCircle(Color(0xFFF5E050))
+                    // Goggle Strap
+                    drawLine(
+                        color = Color.Black,
+                        start = Offset(0f, size.height / 2),
+                        end = Offset(size.width, size.height / 2),
+                        strokeWidth = 4.dp.toPx()
+                    )
+                    // Eye Frame
+                    drawCircle(Color(0xFF808080), radius = size.minDimension / 3.5f)
+                }
+                // Icon on top
+                Icon(icon, contentDescription, tint = Color.Black, modifier = Modifier.scale(0.5f))
+            }
+        }
+        ThemeStyle.WallE -> {
+             Box(contentAlignment = Alignment.Center) {
+                Canvas(modifier = Modifier.size(24.dp)) {
+                    drawRoundRect(
+                        color = Color(0xFFE67E22),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx())
+                    )
+                    // Binocular Eyes hint
+                    drawCircle(Color(0xFF34495E), radius = size.minDimension / 5, center = Offset(size.width * 0.3f, size.height * 0.3f))
+                    drawCircle(Color(0xFF34495E), radius = size.minDimension / 5, center = Offset(size.width * 0.7f, size.height * 0.3f))
+                }
+                Icon(icon, contentDescription, tint = Color.White, modifier = Modifier.scale(0.5f).align(Alignment.BottomCenter).padding(bottom = 2.dp))
+             }
+         }
+        ThemeStyle.Zen -> {
+             Box(contentAlignment = Alignment.Center) {
+                Canvas(modifier = Modifier.size(24.dp)) {
+                    drawArc(
+                        color = Color(0xFF4A5D23),
+                        startAngle = 45f,
+                        sweepAngle = 300f,
+                        useCenter = false,
+                        style = Stroke(width = 2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                    )
+                }
+                Icon(icon, contentDescription, tint = Color(0xFF4A5D23), modifier = Modifier.scale(0.6f))
+            }
+        }
+        ThemeStyle.Dao -> {
+             Box(contentAlignment = Alignment.Center) {
+                Canvas(modifier = Modifier.size(24.dp)) {
+                    val radius = size.minDimension / 2
+                    val center = center
+                    
+                    // 1. Base: Left White, Right Black
+                    drawArc(Color.White, startAngle = 90f, sweepAngle = 180f, useCenter = true, size = size, topLeft = Offset.Zero)
+                    drawArc(Color.Black, startAngle = -90f, sweepAngle = 180f, useCenter = true, size = size, topLeft = Offset.Zero)
+                    
+                    // 2. Top Circle (White) on Black side (creates head of Yang)
+                    // Actually, if Right is Black, Top should be Black to connect?
+                    // Let's standard: Left White, Right Black.
+                    // Top circle White (on Black background) -> Wrong.
+                    // Top circle Black (on White background) -> Creates Black head.
+                    // Bottom circle White (on Black background) -> Creates White head.
+                    
+                    // Let's try:
+                    // Full Circle White.
+                    // Right Half Black.
+                    // Top Circle (radius/2) White (cuts into Black).
+                    // Bottom Circle (radius/2) Black (extends into White).
+                    
+                    drawCircle(Color.White) // Base
+                    drawArc(Color.Black, startAngle = -90f, sweepAngle = 180f, useCenter = true, size = size, topLeft = Offset.Zero) // Right Black
+                    drawCircle(Color.White, radius = radius/2, center = Offset(center.x, center.y - radius/2)) // Top White
+                    drawCircle(Color.Black, radius = radius/2, center = Offset(center.x, center.y + radius/2)) // Bottom Black
+                    
+                    // Eyes
+                    drawCircle(Color.Black, radius = radius/6, center = Offset(center.x, center.y - radius/2))
+                    drawCircle(Color.White, radius = radius/6, center = Offset(center.x, center.y + radius/2))
+                    
+                    // Border
+                    drawCircle(Color.Black, radius = radius, style = Stroke(1.dp.toPx()))
+                }
+                Icon(icon, contentDescription, tint = Color(0xFFD32F2F), modifier = Modifier.scale(0.5f))
             }
         }
         ThemeStyle.Badminton -> {
@@ -212,7 +322,7 @@ fun MainScreen(
     }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = Color.Transparent,
         bottomBar = {
             val currentRoute = mainRoutes[pagerState.currentPage]
             

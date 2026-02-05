@@ -24,6 +24,19 @@ class AchievementRepository @Inject constructor(
     val avatarCropEnabled: Flow<Boolean> = achievementDataSource.avatarCropEnabled
     
     // 健身成就检查
+    suspend fun unlockBadge(badgeKey: String) {
+        val key = when(badgeKey) {
+            "first_workout" -> AchievementDataSource.BADGE_FIRST_WORKOUT
+            "7_day_streak" -> AchievementDataSource.BADGE_7_DAY_STREAK
+            "30_day_streak" -> AchievementDataSource.BADGE_30_DAY_STREAK
+            "100_workouts" -> AchievementDataSource.BADGE_100_WORKOUTS
+            "positive_week" -> AchievementDataSource.BADGE_POSITIVE_WEEK
+            "mood_month" -> AchievementDataSource.BADGE_MOOD_MONTH
+            else -> return
+        }
+        achievementDataSource.unlockBadge(key)
+    }
+
     suspend fun checkWorkoutAchievements() {
         val workoutDays = healthDataSource.totalWorkoutDays.first()
         val currentStreak = healthDataSource.currentStreak.first()

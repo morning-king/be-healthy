@@ -56,22 +56,40 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.behealthy.app.core.database.entity.MoodRecordEntity
-import com.kizitonwose.calendar.compose.HorizontalCalendar
-import com.kizitonwose.calendar.compose.rememberCalendarState
-import com.kizitonwose.calendar.core.CalendarDay
-import com.kizitonwose.calendar.core.DayPosition
-import com.kizitonwose.calendar.core.firstDayOfWeekFromLocale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.kizitonwose.calendar.core.firstDayOfWeekFromLocale
 import java.io.File
-import java.io.IOException
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.time.temporal.WeekFields
 import com.behealthy.app.core.repository.WeatherInfo
+import com.behealthy.app.core.network.HolidayDetail
 import com.behealthy.app.ui.RunningLoading
+import com.behealthy.app.ui.TypewriterText
+
+import androidx.compose.foundation.pager.PagerState
+import java.time.DayOfWeek
+
+// Helper to generate days for the grid (Duplicated from CalendarScreen for simplicity)
+fun getMonthGridDays(yearMonth: YearMonth, firstDayOfWeek: DayOfWeek): List<LocalDate?> {
+    val firstDayOfMonth = yearMonth.atDay(1)
+    val daysInMonth = yearMonth.lengthOfMonth()
+    
+    val startPadding = (firstDayOfMonth.dayOfWeek.value - firstDayOfWeek.value + 7) % 7
+    
+    val grid = mutableListOf<LocalDate?>()
+    repeat(startPadding) { grid.add(null) }
+    for (i in 1..daysInMonth) {
+        grid.add(yearMonth.atDay(i))
+    }
+    while (grid.size % 7 != 0) {
+        grid.add(null)
+    }
+    return grid
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,16 +97,13 @@ fun MoodTrackingScreen(
     viewModel: MoodViewModel = hiltViewModel()
 ) {
     val currentMonth = remember { YearMonth.now() }
-    val startMonth = remember { currentMonth.minusMonths(12) }
-    val endMonth = remember { currentMonth.plusMonths(12) }
+    val startMonth = remember { currentMonth.minusMonths(120) }
+    val endMonth = remember { currentMonth.plusMonths(120) }
     val firstDayOfWeek = remember { firstDayOfWeekFromLocale() }
     
-    val state = rememberCalendarState(
-        startMonth = startMonth,
-        endMonth = endMonth,
-        firstVisibleMonth = currentMonth,
-        firstDayOfWeek = firstDayOfWeek
-    )
+    // Use Pager instead of Calendar library
+    val initialPage = 120
+    val pagerState = rememberPagerState(initialPage = initialPage) { 241 }
     
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var showMoodDialog by remember { mutableStateOf(false) }
@@ -114,6 +129,7 @@ fun MoodTrackingScreen(
     // Weather Data
     val weather by viewModel.weatherForSelectedDate.collectAsState()
     val monthlyWeather by viewModel.weatherForCurrentMonth.collectAsState()
+    val holidays by viewModel.holidaysForCurrentYear.collectAsState()
     
     // Animation State
     var showAnimation by remember { mutableStateOf(false) }
@@ -134,12 +150,25 @@ fun MoodTrackingScreen(
         }
     }
 
-    LaunchedEffect(state.firstVisibleMonth) {
-        viewModel.updateMonth(state.firstVisibleMonth.yearMonth)
+    // Calculate currently visible month based on pager
+    val visibleMonth = remember(pagerState.currentPage) {
+        currentMonth.plusMonths((pagerState.currentPage - initialPage).toLong())
+    }
+
+    LaunchedEffect(visibleMonth) {
+        viewModel.updateMonth(visibleMonth)
+    }
+    
+    // Check if "Today" is visible or selected
+    val isTodayVisible = remember(visibleMonth, selectedDate) {
+        val today = LocalDate.now()
+        val isCurrentMonth = YearMonth.from(today) == visibleMonth
+        val isTodaySelected = selectedDate == today
+        isCurrentMonth && isTodaySelected
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = Color.Transparent
     ) { padding ->
         Column(
             modifier = Modifier
@@ -154,7 +183,7 @@ fun MoodTrackingScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${state.firstVisibleMonth.yearMonth.year}年${state.firstVisibleMonth.yearMonth.monthValue}月",
+                    text = "${visibleMonth.year}年${visibleMonth.monthValue}月",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -173,6 +202,33 @@ fun MoodTrackingScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.width(4.dp))
+                        
+                        // Back to Today Button
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = !isTodayVisible,
+                            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(),
+                            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()
+                        ) {
+                            IconButton(
+                                onClick = { 
+                                    val today = LocalDate.now()
+                                    val diffMonths = YearMonth.from(today).monthValue - currentMonth.monthValue + 
+                                                    (YearMonth.from(today).year - currentMonth.year) * 12
+                                    val targetPage = initialPage + diffMonths
+                                    val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+                                    scope.launch {
+                                        pagerState.animateScrollToPage(targetPage)
+                                        selectedDate = today
+                                    }
+                                },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Text("今", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.width(4.dp))
+                        
                         // Refresh Weather Button
                         IconButton(
                             onClick = { viewModel.refreshWeather(selectedDate) },
@@ -223,29 +279,89 @@ fun MoodTrackingScreen(
                 val summaryHeight = maxHeight * 0.28f
                 val poemHeight = maxHeight * 0.22f
                 Column(modifier = Modifier.fillMaxSize()) {
-                    HorizontalCalendar(
-                        state = state,
-                        dayContent = { day ->
-                            val moodRecord = moodMap[day.date]
-                            val weatherInfo = monthlyWeather[day.date]
-                            MoodDay(
-                                day = day, 
-                                isSelected = selectedDate == day.date,
-                                moodIcon = getMoodIcon(moodRecord?.mood),
-                                hasAudio = moodRecord?.audioPath != null,
-                                isToday = day.date == LocalDate.now(),
-                                weather = weatherInfo
-                            ) { date ->
-                                selectedDate = date
-                                showMoodDialog = true
-                            }
-                        },
+                    
+                    // Month Pager
+                    HorizontalPager(
+                        state = pagerState,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(calendarHeight)
-                            .padding(horizontal = 12.dp)
-                            .padding(bottom = 8.dp)
-                    )
+                    ) { page ->
+                        val pageMonth = currentMonth.plusMonths((page - initialPage).toLong())
+                        val days = remember(pageMonth) { getMonthGridDays(pageMonth, firstDayOfWeek) }
+                        
+                        // Month Grid
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 12.dp)
+                        ) {
+                            // Weekday Headers
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                for (i in 0..6) {
+                                    val dayOfWeek = firstDayOfWeek.plus(i.toLong())
+                                    Text(
+                                        text = dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()),
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Days Grid
+                            // Use weight to distribute height evenly among rows, avoiding overflow
+                            Column(modifier = Modifier.weight(1f)) {
+                                val weeks = days.chunked(7)
+                                weeks.forEach { week ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f)
+                                    ) {
+                                        week.forEach { date ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (date != null) {
+                                                    val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                                                    val moodRecord = moodMap[date]
+                                                    val weatherInfo = monthlyWeather[date]
+                                                    val holidayDetail = holidays[dateStr.substring(5)]
+                                                    
+                                                    MoodDay(
+                                                        date = date, 
+                                                        isSelected = selectedDate == date,
+                                                        moodIcon = getMoodIcon(moodRecord?.mood),
+                                                        hasAudio = moodRecord?.audioPath != null,
+                                                        isToday = date == LocalDate.now(),
+                                                        weather = weatherInfo,
+                                                        holidayDetail = holidayDetail
+                                                    ) { d ->
+                                                        selectedDate = d
+                                                        showMoodDialog = true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        // Fill remaining cells in the row
+                                        if (week.size < 7) {
+                                            repeat(7 - week.size) {
+                                                Box(modifier = Modifier.weight(1f))
+                                            }
+                                        }
+                                    }
+                                }
+                                // If fewer than 6 rows, spaces will be taller (distributed by weight), which is fine.
+                            }
+                        }
+                    }
                     
                     PoemCard(
                         poem = currentPoem, 
@@ -254,7 +370,7 @@ fun MoodTrackingScreen(
                     )
                     
                     MoodMonthlyStats(
-                        currentMonth = state.firstVisibleMonth.yearMonth,
+                        currentMonth = visibleMonth,
                         moodRecords = moodRecords,
                         modifier = Modifier.height(summaryHeight)
                     )
@@ -313,12 +429,13 @@ fun PoemCard(
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
+            TypewriterText(
                 text = poem.content,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                rainbow = true
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
@@ -380,7 +497,7 @@ fun MoodMonthlyStats(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
     ) {
         Column(
             modifier = Modifier
@@ -1012,14 +1129,14 @@ fun MoodEntryCard(
                             .height(50.dp),
                         shape = RoundedCornerShape(25.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
                         if (isLoading) {
                             RunningLoading(size = 24.dp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("保存中...", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text("保存中", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         } else {
                             Text("确定", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         }
@@ -1032,71 +1149,100 @@ fun MoodEntryCard(
 
 @Composable
 fun MoodDay(
-    day: CalendarDay,
+    date: LocalDate,
     isSelected: Boolean,
     moodIcon: String?,
     hasAudio: Boolean,
     isToday: Boolean,
-    weather: WeatherInfo? = null,
+    weather: WeatherInfo?,
+    holidayDetail: HolidayDetail?,
     onClick: (LocalDate) -> Unit
 ) {
     Box(
         modifier = Modifier
-            .height(56.dp)
-            .aspectRatio(1f)
-            .padding(1.dp)
-            .clip(CircleShape)
-            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-            .border(
-                width = if (isToday) 2.dp else 0.dp,
-                color = if (isToday) MaterialTheme.colorScheme.primary else Color.Transparent,
-                shape = CircleShape
-            )
-            .clickable(enabled = day.position == DayPosition.MonthDate) { onClick(day.date) },
+            .fillMaxSize() // Adapt to container
+            .padding(1.dp),
         contentAlignment = Alignment.Center
     ) {
-        if (day.position == DayPosition.MonthDate) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = day.date.dayOfMonth.toString(),
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onBackground,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
+        // Background Circle (Constrained by smallest dimension)
+        Box(
+            modifier = Modifier
+                .aspectRatio(1f)
+                .fillMaxHeight()
+                .clip(CircleShape)
+                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                .border(
+                    width = if (isToday) 2.dp else 0.dp,
+                    color = if (isToday) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    shape = CircleShape
                 )
-                
-                if (moodIcon != null) {
-                    Text(text = moodIcon, fontSize = 12.sp)
-                }
+                .clickable(enabled = true) { onClick(date) }
+        )
+        
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (date.dayOfMonth == 1) {
+                Text(
+                    text = "${date.monthValue}月",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
             }
             
+            if (moodIcon != null) {
+                Text(
+                    text = moodIcon,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            } else {
+                Text(
+                    text = date.dayOfMonth.toString(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                )
+            }
+            
+            // Audio Indicator
             if (hasAudio) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Has Audio",
-                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .size(12.dp)
-                        .padding(2.dp)
+                    contentDescription = "Audio",
+                    modifier = Modifier.size(10.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
-
-            if (weather != null) {
-                val icon = when(weather.condition.name) {
+            
+            // Weather Icon (Small)
+            weather?.let { w ->
+                val icon = when(w.condition.name) {
                     "Sunny" -> "☀️"
                     "Cloudy" -> "☁️"
                     "Rainy" -> "🌧️"
                     "Snowy" -> "❄️"
                     else -> "🌥️"
                 }
-                Text(
-                    text = icon,
-                    fontSize = 10.sp,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(2.dp)
-                )
+                Text(text = icon, style = MaterialTheme.typography.labelSmall, fontSize = 8.sp)
             }
+        }
+        
+        // Holiday/Work Tag (Top Right)
+        if (holidayDetail != null) {
+            val text = if (holidayDetail.holiday) "休" else "班"
+            val color = if (holidayDetail.holiday) Color(0xFF9C27B0) else Color(0xFFFF9800)
+            
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 8.sp,
+                color = color,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 2.dp, end = 4.dp)
+            )
         }
     }
 }

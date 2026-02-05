@@ -13,6 +13,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+import com.behealthy.app.core.database.dao.HolidayDao
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
@@ -39,12 +41,18 @@ object DatabaseModule {
             }
         }
 
+        val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL("CREATE TABLE IF NOT EXISTS `holidays` (`date` TEXT NOT NULL, `name` TEXT NOT NULL, `type` INTEGER NOT NULL, `wage` INTEGER NOT NULL, `holiday` INTEGER NOT NULL, PRIMARY KEY(`date`))")
+            }
+        }
+
         return Room.databaseBuilder(
             context,
             BeHealthyDatabase::class.java,
             "behealthy_db"
         )
-        .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+        .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
         .fallbackToDestructiveMigration()
         .build()
     }
@@ -67,5 +75,10 @@ object DatabaseModule {
     @Provides
     fun provideDailyActivityDao(database: BeHealthyDatabase): DailyActivityDao {
         return database.dailyActivityDao()
+    }
+
+    @Provides
+    fun provideHolidayDao(database: BeHealthyDatabase): HolidayDao {
+        return database.holidayDao()
     }
 }

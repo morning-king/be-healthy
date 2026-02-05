@@ -12,6 +12,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
 
+import androidx.datastore.preferences.core.floatPreferencesKey
+
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_profile")
 
 @Singleton
@@ -29,6 +31,7 @@ class UserProfileDataSource @Inject constructor(
         val TOTAL_MOOD_RECORDS = stringPreferencesKey("total_mood_records")
         val CURRENT_STREAK = stringPreferencesKey("current_streak")
         val THEME_STYLE = stringPreferencesKey("theme_style")
+        val BACKGROUND_ALPHA = floatPreferencesKey("background_alpha")
     }
     
     val nickname: Flow<String?> = context.dataStore.data
@@ -76,6 +79,11 @@ class UserProfileDataSource @Inject constructor(
             preferences[THEME_STYLE] ?: "Default"
         }
     
+    val backgroundAlpha: Flow<Float> = context.dataStore.data
+        .map { preferences ->
+            preferences[BACKGROUND_ALPHA] ?: 0.3f
+        }
+    
     suspend fun updateNickname(nickname: String) {
         context.dataStore.edit { preferences ->
             preferences[NICKNAME] = nickname
@@ -117,6 +125,12 @@ class UserProfileDataSource @Inject constructor(
     suspend fun updateThemeStyle(style: String) {
         context.dataStore.edit { preferences ->
             preferences[THEME_STYLE] = style
+        }
+    }
+    
+    suspend fun updateBackgroundAlpha(alpha: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[BACKGROUND_ALPHA] = alpha
         }
     }
 }

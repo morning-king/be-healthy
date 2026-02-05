@@ -1,6 +1,7 @@
 package com.behealthy.app.di
 
-import com.behealthy.app.core.network.WeatherApi
+import com.behealthy.app.core.network.WeatherCnApi
+import com.behealthy.app.core.network.HolidayTimelessApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,12 +28,23 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideWeatherApi(okHttpClient: OkHttpClient): WeatherApi {
+    fun provideWeatherCnApi(okHttpClient: OkHttpClient): WeatherCnApi {
         return Retrofit.Builder()
-            .baseUrl("https://api.open-meteo.com/")
+            .baseUrl("http://www.weather.com.cn/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(WeatherApi::class.java)
+            .create(WeatherCnApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideHolidayTimelessApi(okHttpClient: OkHttpClient): HolidayTimelessApi {
+        return Retrofit.Builder()
+            .baseUrl("https://timelessq.com/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(HolidayTimelessApi::class.java)
     }
 }

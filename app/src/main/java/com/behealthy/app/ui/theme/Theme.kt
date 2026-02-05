@@ -95,10 +95,10 @@ val DoraemonColorScheme = lightColorScheme(
 )
 
 val MinionColorScheme = lightColorScheme(
-    primary = MinionPrimary,
+    primary = Color(0xFFF5E050),
     secondary = MinionSecondary,
     tertiary = MinionTertiary,
-    background = MinionBackground,
+    background = Color(0xFFFFF9C4),
     surface = MinionSurface,
     onPrimary = Color.Black,
     onSecondary = Color.White,
@@ -108,9 +108,9 @@ val MinionColorScheme = lightColorScheme(
 )
 
 val WallEColorScheme = lightColorScheme(
-    primary = WallEPrimary,
-    secondary = WallESecondary,
-    tertiary = WallETertiary,
+    primary = Color(0xFFE67E22),
+    secondary = Color(0xFF34495E),
+    tertiary = Color(0xFF27AE60),
     background = WallEBackground,
     surface = WallESurface,
     onPrimary = Color.White,
@@ -120,17 +120,17 @@ val WallEColorScheme = lightColorScheme(
     onSurface = Color(0xFF2C3E50)
 )
 
-val NewYearColorScheme = darkColorScheme(
-    primary = NewYearPrimary,
-    secondary = NewYearSecondary,
-    tertiary = NewYearTertiary,
-    background = NewYearBackground,
+val NewYearColorScheme = lightColorScheme(
+    primary = Color(0xFFD32F2F),
+    secondary = Color(0xFFFFB300),
+    tertiary = Color(0xFF8B0000),
+    background = Color(0xFFFFFAFA),
     surface = NewYearSurface,
-    onPrimary = Color.Black,
+    onPrimary = Color.White,
     onSecondary = Color.Black,
-    onTertiary = Color.Black,
-    onBackground = Color(0xFFFFD700),
-    onSurface = Color.White
+    onTertiary = Color.White,
+    onBackground = Color(0xFF333333),
+    onSurface = Color(0xFF333333)
 )
 
 val NBAColorScheme = lightColorScheme(
@@ -172,6 +172,46 @@ val WorldCupColorScheme = lightColorScheme(
     onSurface = Color.Black
 )
 
+// Zen Style
+val ZenPrimary = Color(0xFF4A5D23) // Moss Green
+val ZenSecondary = Color(0xFF8D6E63) // Wood Brown
+val ZenTertiary = Color(0xFFA1887F)
+val ZenBackground = Color(0xFFF1F8E9) // Light Greenish White
+val ZenSurface = Color(0xFFFFFFFF)
+
+val ZenColorScheme = lightColorScheme(
+    primary = ZenPrimary,
+    secondary = ZenSecondary,
+    tertiary = ZenTertiary,
+    background = ZenBackground,
+    surface = ZenSurface,
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = Color.White,
+    onBackground = Color(0xFF333333),
+    onSurface = Color(0xFF333333)
+)
+
+// Dao Style
+val DaoPrimary = Color(0xFF212121) // Black
+val DaoSecondary = Color(0xFFBCAAA4) // Muted Brown
+val DaoTertiary = Color(0xFF607D8B)
+val DaoBackground = Color(0xFFFAFAFA)
+val DaoSurface = Color(0xFFFFFFFF)
+
+val DaoColorScheme = lightColorScheme(
+    primary = DaoPrimary,
+    secondary = DaoSecondary,
+    tertiary = DaoTertiary,
+    background = DaoBackground,
+    surface = DaoSurface,
+    onPrimary = Color.White,
+    onSecondary = Color.Black,
+    onTertiary = Color.White,
+    onBackground = Color.Black,
+    onSurface = Color.Black
+)
+
 fun getThemeColorScheme(themeStyle: ThemeStyle): androidx.compose.material3.ColorScheme {
     return when (themeStyle) {
         ThemeStyle.Tech -> TechColorScheme
@@ -184,6 +224,8 @@ fun getThemeColorScheme(themeStyle: ThemeStyle): androidx.compose.material3.Colo
         ThemeStyle.NBA -> NBAColorScheme
         ThemeStyle.Badminton -> BadmintonColorScheme
         ThemeStyle.FootballWorldCup -> WorldCupColorScheme
+        ThemeStyle.Zen -> ZenColorScheme
+        ThemeStyle.Dao -> DaoColorScheme
         ThemeStyle.Default -> LightColorScheme // Default to Light for preview
     }
 }
@@ -207,6 +249,8 @@ fun BeHealthyTheme(
         ThemeStyle.NBA -> NBAColorScheme
         ThemeStyle.Badminton -> BadmintonColorScheme
         ThemeStyle.FootballWorldCup -> WorldCupColorScheme
+        ThemeStyle.Zen -> ZenColorScheme
+        ThemeStyle.Dao -> DaoColorScheme
         ThemeStyle.Default -> {
             when {
                 dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {

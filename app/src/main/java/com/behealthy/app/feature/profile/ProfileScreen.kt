@@ -91,16 +91,10 @@ fun ProfileScreen(
     if (showThemeDialog) {
         ThemeSelectionDialog(
             currentTheme = uiState.themeStyle,
+            currentAlpha = uiState.backgroundAlpha,
             onDismiss = { showThemeDialog = false },
-            onThemeSelected = { viewModel.updateThemeStyle(it) }
-        )
-    }
-
-    if (showThemeDialog) {
-        ThemeSelectionDialog(
-            currentTheme = uiState.themeStyle,
-            onDismiss = { showThemeDialog = false },
-            onThemeSelected = { viewModel.updateThemeStyle(it) }
+            onThemeSelected = { viewModel.updateThemeStyle(it) },
+            onAlphaChange = { viewModel.updateBackgroundAlpha(it) }
         )
     }
     
@@ -144,11 +138,12 @@ fun ProfileScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("我的档案", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 ),
                 navigationIcon = {
@@ -179,7 +174,6 @@ fun ProfileScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
         ) {
             if (isEditing) {
                 ProfileEditView(
@@ -343,11 +337,18 @@ fun ProfileEditView(
     if (showThemeDialog) {
         ThemeSelectionDialog(
             currentTheme = uiState.themeStyle,
+            currentAlpha = uiState.backgroundAlpha,
             onDismiss = { showThemeDialog = false },
             onThemeSelected = { 
                 viewModel.updateThemeStyle(it)
-                showThemeDialog = false
-            }
+                // Dialog stays open to allow adjusting multiple things? 
+                // Or close it? Original code closed it.
+                // showThemeDialog = false // Let user close it manually if they want to adjust slider?
+                // Actually, selecting a theme usually closes dialog.
+                // But transparency slider needs dialog to stay open.
+                // So let's NOT close on theme select, only on Dismiss/Close button.
+            },
+            onAlphaChange = { viewModel.updateBackgroundAlpha(it) }
         )
     }
 
@@ -612,70 +613,110 @@ fun BadgeItem(name: String, unlocked: Boolean, icon: ImageVector) {
 @Composable
 fun ThemeSelectionDialog(
     currentTheme: String,
+    currentAlpha: Float,
     onDismiss: () -> Unit,
-    onThemeSelected: (String) -> Unit
+    onThemeSelected: (String) -> Unit,
+    onAlphaChange: (Float) -> Unit
 ) {
     val themes = ThemeStyle.values()
     
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth().heightIn(max = 700.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(20.dp)
-                    .widthIn(min = 280.dp, max = 360.dp)
-                    .heightIn(max = 560.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
+            Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    text = "选择主题风格",
+                    text = "主题风格设置",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                themes.forEach { theme ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onThemeSelected(theme.name) }
-                            .padding(vertical = 10.dp, horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = theme.name == currentTheme,
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                // Transparency Slider
+                Text(
+                    text = "背景透明度: ${(currentAlpha * 100).toInt()}%", 
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Slider(
+                    value = currentAlpha,
+                    onValueChange = onAlphaChange,
+                    valueRange = 0f..1f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                // Theme Grid
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(themes) { theme ->
+                        ThemeCard(
+                            theme = theme,
+                            isSelected = theme.name == currentTheme,
                             onClick = { onThemeSelected(theme.name) }
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = getThemeName(theme.name),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            val colors = getThemeColorScheme(theme)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(14.dp).clip(CircleShape).background(colors.primary))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(modifier = Modifier.size(14.dp).clip(CircleShape).background(colors.secondary))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(modifier = Modifier.size(14.dp).clip(CircleShape).background(colors.tertiary))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(modifier = Modifier.size(14.dp).clip(CircleShape).background(colors.background).border(1.dp, Color.Gray, CircleShape))
-                            }
-                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                TextButton(
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                Button(
                     onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("取消")
+                    Text("完成")
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ThemeCard(theme: ThemeStyle, isSelected: Boolean, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(80.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(
+                    width = if (isSelected) 3.dp else 1.dp,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(12.dp)
+                )
+        ) {
+            // Preview Background
+            com.behealthy.app.ui.DynamicThemeBackground(theme = theme, alpha = 1f)
+            
+            if (isSelected) {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = getThemeName(theme.name),
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.Center,
+            maxLines = 1
+        )
     }
 }
 
@@ -693,6 +734,8 @@ fun getThemeName(themeStyleName: String): String {
             ThemeStyle.NBA -> "NBA"
             ThemeStyle.Badminton -> "羽毛球"
             ThemeStyle.FootballWorldCup -> "世界杯"
+            ThemeStyle.Zen -> "禅"
+            ThemeStyle.Dao -> "道"
         }
     } catch (e: Exception) {
         "默认风格"

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -28,13 +29,17 @@ import javax.inject.Inject
 
 import com.behealthy.app.core.repository.SportsData
 
+import com.behealthy.app.core.network.HolidayDetail
+import com.behealthy.app.data.repository.HolidayRepository
+
 @HiltViewModel
 class TaskViewModel @Inject constructor(
     private val taskRepository: FitnessTaskRepository,
     private val planRepository: FitnessPlanRepository,
     private val sportsDataRepository: SportsDataRepository,
     private val dailyActivityRepository: DailyActivityRepository,
-    private val weatherRepository: com.behealthy.app.core.repository.WeatherRepository
+    private val weatherRepository: com.behealthy.app.core.repository.WeatherRepository,
+    private val holidayRepository: HolidayRepository
 ) : ViewModel() {
 
     val currentSportsData = sportsDataRepository.currentSportsData
@@ -45,6 +50,12 @@ class TaskViewModel @Inject constructor(
 
     private val _currentMonth = MutableStateFlow(YearMonth.now())
     val currentMonth: StateFlow<YearMonth> = _currentMonth.asStateFlow()
+    
+    val holidaysForCurrentYear = _currentMonth.flatMapLatest { month ->
+        flow {
+            emit(holidayRepository.getHolidaysForYear(month.year))
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
     
     val weatherForSelectedDate = _selectedDate.flatMapLatest { date ->
         weatherRepository.getWeatherForDate(date)
@@ -200,9 +211,11 @@ class TaskViewModel @Inject constructor(
     init {
         // Trigger generation of tasks for today if needed
         checkAndGenerateTasks(LocalDate.now())
-        startSyncingSportsData()
+        // Auto-sync removed as per new requirement: Tasks are manual only.
+        // startSyncingSportsData()
     }
 
+    /*
     private fun startSyncingSportsData() {
         viewModelScope.launch {
             try {
@@ -236,6 +249,7 @@ class TaskViewModel @Inject constructor(
             }
         }
     }
+    */
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val tasksForCurrentMonth: StateFlow<List<FitnessTaskEntity>> = combine(_currentMonth, _refreshTrigger) { month: YearMonth, _: Int ->
@@ -266,6 +280,98 @@ class TaskViewModel @Inject constructor(
         }
     }
 
+    data class SubmissionAchievement(
+        val isSuccess: Boolean,
+        val streakDays: Int,
+        val newRecords: List<String> // e.g., "New Calorie Record!", "Longest Workout!"
+    )
+
+    private val _submissionAchievement = kotlinx.coroutines.flow.MutableSharedFlow<SubmissionAchievement>()
+    val submissionAchievement = _submissionAchievement.asSharedFlow()
+
+    fun saveAndCompleteTask(task: FitnessTaskEntity) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            
+            // 1. Save Task as Completed
+            val completedTask = task.copy(isCompleted = true)
+            taskRepository.updateTask(completedTask)
+            
+            // 2. Analyze History for Gamification
+            val history = taskRepository.getCompletedTasksHistory()
+            
+            // A. Calculate Streak
+            // Sort unique dates descending
+            val uniqueDates = history.map { it.date }.distinct().sortedDescending()
+            var streak = 0
+            if (uniqueDates.isNotEmpty()) {
+                val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+                val taskDateStr = task.date
+                
+                // Start checking from the task date (or today if it's recent)
+                // Actually, streak implies consecutive days ending TODAY or YESTERDAY.
+                // But for this specific task submission, if I fill in yesterday's task, does it count?
+                // Let's count consecutive days backwards from the latest completed date.
+                
+                var currentDate = LocalDate.parse(uniqueDates[0], DateTimeFormatter.ISO_LOCAL_DATE)
+                streak = 1
+                
+                for (i in 1 until uniqueDates.size) {
+                    val prevDate = LocalDate.parse(uniqueDates[i], DateTimeFormatter.ISO_LOCAL_DATE)
+                    if (prevDate.plusDays(1) == currentDate) {
+                        streak++
+                        currentDate = prevDate
+                    } else {
+                        break
+                    }
+                }
+            }
+            
+            // B. Calculate Records (Personal Best)
+            val newRecords = mutableListOf<String>()
+            
+            // Only consider records if the value is significant (>0)
+            if (completedTask.actualCalories > 0) {
+                val maxCals = history.maxOfOrNull { it.actualCalories } ?: 0
+                // If current is the max and it's the only one (or we just celebrate matching PB)
+                // Let's go with "New Record" if it strictly beats previous max (excluding self if we hadn't saved yet, but we did).
+                // So if count of items with this max value is 1, it's a new unique record.
+                val countMax = history.count { it.actualCalories == maxCals }
+                if (completedTask.actualCalories == maxCals && countMax == 1) {
+                    newRecords.add("消耗创新高！ \uD83D\uDD25") // Fire
+                }
+            }
+            
+            if (completedTask.actualMinutes > 0) {
+                val maxMins = history.maxOfOrNull { it.actualMinutes } ?: 0
+                val countMax = history.count { it.actualMinutes == maxMins }
+                if (completedTask.actualMinutes == maxMins && countMax == 1) {
+                    newRecords.add("时长创新高！ \u23F1\uFE0F") // Stopwatch
+                }
+            }
+            
+            if (completedTask.actualSteps > 0) {
+                val maxSteps = history.maxOfOrNull { it.actualSteps } ?: 0
+                val countMax = history.count { it.actualSteps == maxSteps }
+                if (completedTask.actualSteps == maxSteps && countMax == 1) {
+                    newRecords.add("步数创新高！ \uD83D\uDC63") // Footprints
+                }
+            }
+
+            _submissionAchievement.emit(
+                SubmissionAchievement(
+                    isSuccess = true,
+                    streakDays = streak,
+                    newRecords = newRecords
+                )
+            )
+
+            _refreshTrigger.value += 1
+            kotlinx.coroutines.delay(500) 
+            _isLoading.value = false
+        }
+    }
+
     fun updateTask(task: FitnessTaskEntity) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -280,8 +386,8 @@ class TaskViewModel @Inject constructor(
         viewModelScope.launch {
             val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
             
-            // Fix Item 4: Sync historical data if available
-            // This ensures if user views past date, task data is consistent with daily_activity (Oppo history)
+            // Sync logic removed: Tasks should not be overwritten by historical daily_activity
+            /*
             val dailyActivity = dailyActivityRepository.getDailyActivity(dateStr).first()
             if (dailyActivity != null) {
                 val tasks = taskRepository.getTasksByDate(dateStr).first()
@@ -301,6 +407,7 @@ class TaskViewModel @Inject constructor(
                      }
                 }
             }
+            */
             
             // Simplified logic: Load all active plans, check if task exists for each plan on this date, if not create one.
             val plans = planRepository.activePlans.first()
