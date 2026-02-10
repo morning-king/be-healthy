@@ -1,0 +1,27 @@
+/* World Cup Soccer Rotation Animation */
+
+.soccer-ball {
+    width: 56px;
+    height: 56px;
+    /* Apply the rotation animation */
+    animation: spin 2s linear infinite;
+    
+    /* Ensure smooth rendering */
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+    will-change: transform;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Optional: Hover to pause */
+.soccer-ball:hover {
+    animation-play-state: paused;
+}

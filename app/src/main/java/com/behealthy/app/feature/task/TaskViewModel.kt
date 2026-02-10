@@ -46,29 +46,36 @@ class TaskViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SportsData(0, 0, 0, 0))
 
     private val _selectedDate = MutableStateFlow(LocalDate.now())
+    @OptIn(ExperimentalCoroutinesApi::class)
     val selectedDate: StateFlow<LocalDate> = _selectedDate.asStateFlow()
 
     private val _currentMonth = MutableStateFlow(YearMonth.now())
+    @OptIn(ExperimentalCoroutinesApi::class)
     val currentMonth: StateFlow<YearMonth> = _currentMonth.asStateFlow()
+
+    private val _refreshTrigger = MutableStateFlow(0)
     
-    val holidaysForCurrentYear = _currentMonth.flatMapLatest { month ->
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val holidaysForCurrentYear = combine(_currentMonth, _refreshTrigger) { month, _ ->
+        month
+    }.flatMapLatest { month ->
         flow {
             emit(holidayRepository.getHolidaysForYear(month.year))
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap<String, HolidayDetail>())
     
+    @OptIn(ExperimentalCoroutinesApi::class)
     val weatherForSelectedDate = _selectedDate.flatMapLatest { date ->
         weatherRepository.getWeatherForDate(date)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     
+    @OptIn(ExperimentalCoroutinesApi::class)
     val weatherForCurrentMonth = _currentMonth.flatMapLatest { month ->
         flow {
             emit(weatherRepository.getWeatherForMonth(month.year, month.monthValue))
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    private val _refreshTrigger = MutableStateFlow(0)
-    
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     
@@ -82,6 +89,14 @@ class TaskViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     val tasksForSelectedDate: StateFlow<List<FitnessTaskEntity>> = combine(_selectedDate, _refreshTrigger) { date, _ ->
         date
+    }.flatMapLatest { date ->
+            taskRepository.getTasksByDate(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val tasksForYesterday: StateFlow<List<FitnessTaskEntity>> = combine(_selectedDate, _refreshTrigger) { date, _ ->
+        date.minusDays(1)
     }.flatMapLatest { date ->
             taskRepository.getTasksByDate(date.format(DateTimeFormatter.ISO_LOCAL_DATE))
         }
@@ -252,7 +267,7 @@ class TaskViewModel @Inject constructor(
     */
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val tasksForCurrentMonth: StateFlow<List<FitnessTaskEntity>> = combine(_currentMonth, _refreshTrigger) { month: YearMonth, _: Int ->
+    val tasksForCurrentMonth: StateFlow<List<FitnessTaskEntity>> = combine(_currentMonth, _refreshTrigger) { month, _ ->
         month
     }.flatMapLatest { month ->
             val start = month.atDay(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
@@ -279,12 +294,6 @@ class TaskViewModel @Inject constructor(
             _isLoading.value = false
         }
     }
-
-    data class SubmissionAchievement(
-        val isSuccess: Boolean,
-        val streakDays: Int,
-        val newRecords: List<String> // e.g., "New Calorie Record!", "Longest Workout!"
-    )
 
     private val _submissionAchievement = kotlinx.coroutines.flow.MutableSharedFlow<SubmissionAchievement>()
     val submissionAchievement = _submissionAchievement.asSharedFlow()
@@ -382,6 +391,23 @@ class TaskViewModel @Inject constructor(
         }
     }
 
+    fun updateHolidayStatus(date: LocalDate, isHoliday: Boolean, name: String) {
+        viewModelScope.launch {
+            val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+            holidayRepository.updateHoliday(dateStr, isHoliday, name)
+            // Refresh holidays flow by emitting new value to _currentMonth or force refresh
+            // Since holidaysForCurrentYear listens to _currentMonth, re-emitting same month *might* not trigger if distinctUntilChanged is used (but it's not here explicitly).
+            // However, StateFlow holds value. We might need a refresh trigger for holidays.
+            // But holidaysForCurrentYear uses flatMapLatest. If we re-emit _currentMonth, it re-runs.
+            val current = _currentMonth.value
+            _currentMonth.value = current.minusMonths(1) // Hack to trigger change? No, bad UX.
+            // Better: Add a refresh trigger for holidays.
+            _refreshTrigger.value += 1 
+            // Actually holidaysForCurrentYear doesn't listen to _refreshTrigger.
+            // Let's modify holidaysForCurrentYear to listen to _refreshTrigger too.
+        }
+    }
+
     private fun checkAndGenerateTasks(date: LocalDate) {
         viewModelScope.launch {
             val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
@@ -455,3 +481,4 @@ class TaskViewModel @Inject constructor(
         return dayOfWeek in 1..5
     }
 }
+

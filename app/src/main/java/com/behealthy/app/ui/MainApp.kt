@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -39,12 +40,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material3.FabPosition
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -304,6 +310,8 @@ fun ThemedIcon(
 }
 
 
+
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MainScreen(
@@ -324,68 +332,73 @@ fun MainScreen(
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
-            val currentRoute = mainRoutes[pagerState.currentPage]
-            
-            NavigationBar {
-                // Fitness (Home)
-                NavigationBarItem(
-                    icon = { 
-                        ThemedIcon(
-                            themeStyle = themeStyle,
-                            icon = if (currentRoute == "calendar") Icons.Filled.DirectionsRun else Icons.Outlined.DirectionsRun, 
-                            contentDescription = "健身",
-                            isSelected = currentRoute == "calendar"
-                        ) 
-                    },
-                    label = { Text("健身") },
-                    selected = currentRoute == "calendar",
-                    onClick = { navigateToTab(0) }
-                )
+            Box(contentAlignment = Alignment.TopCenter) {
+                val currentRoute = mainRoutes[pagerState.currentPage]
                 
-                // Mood
-                NavigationBarItem(
-                    icon = { 
-                        ThemedIcon(
-                            themeStyle = themeStyle,
-                            icon = if (currentRoute == "mood") Icons.Filled.Face else Icons.Outlined.Face, 
-                            contentDescription = "心情",
-                            isSelected = currentRoute == "mood"
-                        ) 
-                    },
-                    label = { Text("心情") },
-                    selected = currentRoute == "mood",
-                    onClick = { navigateToTab(1) }
-                )
+                NavigationBar {
+                    // Fitness (Home)
+                    NavigationBarItem(
+                        icon = { 
+                            ThemedIcon(
+                                themeStyle = themeStyle,
+                                icon = if (currentRoute == "calendar") Icons.Filled.DirectionsRun else Icons.Outlined.DirectionsRun, 
+                                contentDescription = "健身",
+                                isSelected = currentRoute == "calendar"
+                            ) 
+                        },
+                        label = { Text("健身") },
+                        selected = currentRoute == "calendar",
+                        onClick = { navigateToTab(0) }
+                    )
+                    
+                    // Mood
+                    NavigationBarItem(
+                        icon = { 
+                            ThemedIcon(
+                                themeStyle = themeStyle,
+                                icon = if (currentRoute == "mood") Icons.Filled.Face else Icons.Outlined.Face, 
+                                contentDescription = "心情",
+                                isSelected = currentRoute == "mood"
+                            ) 
+                        },
+                        label = { Text("心情") },
+                        selected = currentRoute == "mood",
+                        onClick = { navigateToTab(1) }
+                    )
+                    
+                    // Stats
+                    NavigationBarItem(
+                        icon = { 
+                            ThemedIcon(
+                                themeStyle = themeStyle,
+                                icon = if (currentRoute == "stats") Icons.Filled.DateRange else Icons.Outlined.DateRange, 
+                                contentDescription = "统计",
+                                isSelected = currentRoute == "stats"
+                            ) 
+                        },
+                        label = { Text("统计") },
+                        selected = currentRoute == "stats",
+                        onClick = { navigateToTab(2) }
+                    )
+                    
+                    // Profile
+                    NavigationBarItem(
+                        icon = { 
+                            ThemedIcon(
+                                themeStyle = themeStyle,
+                                icon = if (currentRoute == "profile") Icons.Filled.Person else Icons.Outlined.Person, 
+                                contentDescription = "我的",
+                                isSelected = currentRoute == "profile"
+                            ) 
+                        },
+                        label = { Text("我的") },
+                        selected = currentRoute == "profile",
+                        onClick = { navigateToTab(3) }
+                    )
+                }
                 
-                // Stats
-                NavigationBarItem(
-                    icon = { 
-                        ThemedIcon(
-                            themeStyle = themeStyle,
-                            icon = if (currentRoute == "stats") Icons.Filled.DateRange else Icons.Outlined.DateRange, 
-                            contentDescription = "统计",
-                            isSelected = currentRoute == "stats"
-                        ) 
-                    },
-                    label = { Text("统计") },
-                    selected = currentRoute == "stats",
-                    onClick = { navigateToTab(2) }
-                )
-                
-                // Profile
-                NavigationBarItem(
-                    icon = { 
-                        ThemedIcon(
-                            themeStyle = themeStyle,
-                            icon = if (currentRoute == "profile") Icons.Filled.Person else Icons.Outlined.Person, 
-                            contentDescription = "我的",
-                            isSelected = currentRoute == "profile"
-                        ) 
-                    },
-                    label = { Text("我的") },
-                    selected = currentRoute == "profile",
-                    onClick = { navigateToTab(3) }
-                )
+                // Middle Decoration (Overlay)
+                ThemeMiddleDecoration(themeStyle)
             }
         }
     ) { padding ->
@@ -414,4 +427,37 @@ fun MainScreen(
     }
 }
 
-
+@Composable
+fun ThemeMiddleDecoration(themeStyle: ThemeStyle) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(80.dp), // Match NavigationBar height
+        contentAlignment = Alignment.TopCenter
+    ) {
+        // 1. Top Line
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val isDoraemon = themeStyle == ThemeStyle.Doraemon
+            val strokeWidth = if (isDoraemon) 3.dp.toPx() else 1.dp.toPx()
+            val color = if (isDoraemon) Color(0xFFE60012) else Color.Black.copy(alpha = 0.2f)
+            
+            // Draw line at the very top edge (accounting for stroke width to be fully visible inside)
+            val yPos = strokeWidth / 2
+            
+            drawLine(
+                color = color,
+                start = Offset(0f, yPos),
+                end = Offset(size.width, yPos),
+                strokeWidth = strokeWidth
+            )
+        }
+        
+        // 2. Rotating Icon (Bell in middle)
+        ThemeRotatingIcon(
+            themeStyle = themeStyle,
+            modifier = Modifier
+                .size(19.dp)
+                .offset(y = (-9.5).dp)
+        )
+    }
+}

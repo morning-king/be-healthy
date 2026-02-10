@@ -16,7 +16,8 @@ data class UserProfile(
     val totalMoodRecords: Int = 0,
     val currentStreak: Int = 0,
     val themeStyle: String = "Default",
-    val backgroundAlpha: Float = 0.3f
+    val backgroundAlpha: Float = 0.3f,
+    val pageTransition: String = "Default"
 )
 
 @Singleton
@@ -31,32 +32,38 @@ class UserProfileRepository @Inject constructor(
             dataSource.note,
             dataSource.avatarUri
         ) { nickname, birthday, note, avatarUri ->
-            UserProfilePartial(nickname, birthday, note, avatarUri)
+            UserProfileInfo(nickname, birthday, note, avatarUri)
         },
         combine(
             dataSource.totalWorkoutDays,
             dataSource.totalMoodRecords,
-            dataSource.currentStreak,
+            dataSource.currentStreak
+        ) { totalWorkoutDays, totalMoodRecords, currentStreak ->
+            UserProfileStats(totalWorkoutDays, totalMoodRecords, currentStreak)
+        },
+        combine(
             dataSource.themeStyle,
-            dataSource.backgroundAlpha
-        ) { totalWorkoutDays, totalMoodRecords, currentStreak, themeStyle, backgroundAlpha ->
-            UserProfileStats(totalWorkoutDays, totalMoodRecords, currentStreak, themeStyle, backgroundAlpha)
+            dataSource.backgroundAlpha,
+            dataSource.pageTransition
+        ) { themeStyle, backgroundAlpha, pageTransition ->
+            UserProfileSettings(themeStyle, backgroundAlpha, pageTransition)
         }
-    ) { partial, stats ->
+    ) { info, stats, settings ->
         UserProfile(
-            nickname = partial.nickname,
-            birthday = partial.birthday,
-            note = partial.note,
-            avatarUri = partial.avatarUri,
+            nickname = info.nickname,
+            birthday = info.birthday,
+            note = info.note,
+            avatarUri = info.avatarUri,
             totalWorkoutDays = stats.totalWorkoutDays,
             totalMoodRecords = stats.totalMoodRecords,
             currentStreak = stats.currentStreak,
-            themeStyle = stats.themeStyle,
-            backgroundAlpha = stats.backgroundAlpha
+            themeStyle = settings.themeStyle ?: "Default",
+            backgroundAlpha = settings.backgroundAlpha ?: 0.3f,
+            pageTransition = settings.pageTransition ?: "Default"
         )
     }
 
-    private data class UserProfilePartial(
+    private data class UserProfileInfo(
         val nickname: String?,
         val birthday: String?,
         val note: String?,
@@ -66,9 +73,13 @@ class UserProfileRepository @Inject constructor(
     private data class UserProfileStats(
         val totalWorkoutDays: Int,
         val totalMoodRecords: Int,
-        val currentStreak: Int,
-        val themeStyle: String,
-        val backgroundAlpha: Float
+        val currentStreak: Int
+    )
+    
+    private data class UserProfileSettings(
+        val themeStyle: String?,
+        val backgroundAlpha: Float?,
+        val pageTransition: String?
     )
     
     suspend fun updateNickname(nickname: String) {
@@ -101,5 +112,9 @@ class UserProfileRepository @Inject constructor(
     
     suspend fun updateBackgroundAlpha(alpha: Float) {
         dataSource.updateBackgroundAlpha(alpha)
+    }
+
+    suspend fun updatePageTransition(transition: String) {
+        dataSource.updatePageTransition(transition)
     }
 }

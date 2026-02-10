@@ -91,7 +91,8 @@ class ProfileViewModel @Inject constructor(
             birthdayReminderEnabled = achievementStats.birthdayReminder,
             avatarCropEnabled = achievementStats.avatarCrop,
             themeStyle = profile.themeStyle,
-            backgroundAlpha = profile.backgroundAlpha
+            backgroundAlpha = profile.backgroundAlpha,
+            pageTransition = profile.pageTransition
         )
     }
         .stateIn(
@@ -247,6 +248,12 @@ class ProfileViewModel @Inject constructor(
     fun updateBackgroundAlpha(alpha: Float) {
         viewModelScope.launch {
             userProfileRepository.updateBackgroundAlpha(alpha)
+        }
+    }
+    
+    fun updatePageTransition(transitionName: String) {
+        viewModelScope.launch {
+            userProfileRepository.updatePageTransition(transitionName)
         }
     }
     

@@ -47,12 +47,18 @@ object DatabaseModule {
             }
         }
 
+        val MIGRATION_8_9 = object : androidx.room.migration.Migration(8, 9) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE fitness_tasks ADD COLUMN weight REAL NOT NULL DEFAULT 0.0")
+            }
+        }
+
         return Room.databaseBuilder(
             context,
             BeHealthyDatabase::class.java,
             "behealthy_db"
         )
-        .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+        .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
         .fallbackToDestructiveMigration()
         .build()
     }

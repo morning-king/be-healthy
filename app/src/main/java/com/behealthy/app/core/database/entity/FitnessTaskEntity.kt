@@ -59,6 +59,7 @@ data class FitnessTaskEntity(
     val actualSteps: Int = 0,
     val actualCalories: Int = 0,
     val actualDistanceMeters: Int = 0,
+    val weight: Float = 0f,
 
     // Check-in Media (Comma separated paths)
     val checkInImages: String = "",

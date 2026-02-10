@@ -166,10 +166,10 @@ val WorldCupColorScheme = lightColorScheme(
     background = WorldCupBackground,
     surface = WorldCupSurface,
     onPrimary = Color.White,
-    onSecondary = Color.Black,
-    onTertiary = Color.White,
-    onBackground = Color.Black,
-    onSurface = Color.Black
+    onSecondary = Color.White,
+    onTertiary = Color.Black,
+    onBackground = WorldCupTextPrimary,
+    onSurface = WorldCupTextPrimary
 )
 
 // Zen Style

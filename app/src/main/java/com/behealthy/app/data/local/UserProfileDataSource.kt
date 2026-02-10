@@ -32,6 +32,7 @@ class UserProfileDataSource @Inject constructor(
         val CURRENT_STREAK = stringPreferencesKey("current_streak")
         val THEME_STYLE = stringPreferencesKey("theme_style")
         val BACKGROUND_ALPHA = floatPreferencesKey("background_alpha")
+        val PAGE_TRANSITION = stringPreferencesKey("page_transition")
     }
     
     val nickname: Flow<String?> = context.dataStore.data
@@ -79,9 +80,14 @@ class UserProfileDataSource @Inject constructor(
             preferences[THEME_STYLE] ?: "Default"
         }
     
-    val backgroundAlpha: Flow<Float> = context.dataStore.data
+    val backgroundAlpha: Flow<Float?> = context.dataStore.data
         .map { preferences ->
-            preferences[BACKGROUND_ALPHA] ?: 0.3f
+            preferences[BACKGROUND_ALPHA]
+        }
+
+    val pageTransition: Flow<String?> = context.dataStore.data
+        .map { preferences ->
+            preferences[PAGE_TRANSITION]
         }
     
     suspend fun updateNickname(nickname: String) {
@@ -131,6 +137,12 @@ class UserProfileDataSource @Inject constructor(
     suspend fun updateBackgroundAlpha(alpha: Float) {
         context.dataStore.edit { preferences ->
             preferences[BACKGROUND_ALPHA] = alpha
+        }
+    }
+
+    suspend fun updatePageTransition(transition: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PAGE_TRANSITION] = transition
         }
     }
 }

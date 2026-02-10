@@ -29,4 +29,12 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = 0.3f
         )
+        
+    val pageTransition = userProfileRepository.userProfile
+        .map { it.pageTransition }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = "Default"
+        )
 }

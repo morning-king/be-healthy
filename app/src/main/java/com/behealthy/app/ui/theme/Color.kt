@@ -73,11 +73,13 @@ val BadmintonBackground = Color(0xFFE0F2F1) // Light Teal
 val BadmintonSurface = Color(0xFFFFFFFF)
 
 // Football World Cup Style
-val WorldCupPrimary = Color(0xFF8D1B3D) // Trophy Gold/Maroon mix - let's go Maroon
-val WorldCupSecondary = Color(0xFFFDB913) // Gold
-val WorldCupTertiary = Color(0xFF006400) // Pitch Green
-val WorldCupBackground = Color(0xFFFFF8E1) // Light Gold/Cream
-val WorldCupSurface = Color(0xFFFFFFFF)
+val WorldCupPrimary = Color(0xFF8B0000) // Deep Red (FIFA)
+val WorldCupSecondary = Color(0xFF006A4E) // Deep Green (FIFA)
+val WorldCupTertiary = Color(0xFFFFD700) // Gold (FIFA)
+val WorldCupQuaternary = Color(0xFFC0C0C0) // Silver (FIFA)
+val WorldCupTextPrimary = Color(0xFF2D2D2D) // High Contrast Dark Grey
+val WorldCupBackground = Color(0xFFFFFFFF) // White for high contrast
+val WorldCupSurface = Color(0xFFF5F5F5)
 
 // Chart Colors
 val OppoGreen = Color(0xFF006C4C)

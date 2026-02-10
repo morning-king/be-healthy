@@ -24,5 +24,6 @@ data class ProfileUiState(
     val avatarCropEnabled: Boolean = true,
     // 主题
     val themeStyle: String = "Default",
-    val backgroundAlpha: Float = 0.3f
+    val backgroundAlpha: Float = 0.3f,
+    val pageTransition: String = "Default"
 )

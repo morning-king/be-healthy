@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.behealthy.app.core.database.entity.MoodRecordEntity
 import com.behealthy.app.core.repository.MoodRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,7 @@ import com.behealthy.app.data.repository.HolidayRepository
 
 data class Poem(val content: String, val author: String)
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MoodViewModel @Inject constructor(
     private val moodRepository: MoodRepository,
@@ -48,7 +50,8 @@ class MoodViewModel @Inject constructor(
 
     private val _currentMonth = MutableStateFlow(YearMonth.now())
     
-    val holidaysForCurrentYear = _currentMonth.flatMapLatest { month ->
+    val holidaysForCurrentYear = combine(_currentMonth, _refreshTrigger) { month, _ -> month }
+        .flatMapLatest { month ->
         flow {
             emit(holidayRepository.getHolidaysForYear(month.year))
         }
@@ -235,6 +238,14 @@ class MoodViewModel @Inject constructor(
             _weatherRefreshTrigger.value += 1
             delay(1000) // Show loading animation
             _isLoading.value = false
+        }
+    }
+
+    fun updateHolidayStatus(date: LocalDate, isHoliday: Boolean, name: String) {
+        viewModelScope.launch {
+            val dateStr = date.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+            holidayRepository.updateHoliday(dateStr, isHoliday, name)
+            _refreshTrigger.value += 1
         }
     }
 

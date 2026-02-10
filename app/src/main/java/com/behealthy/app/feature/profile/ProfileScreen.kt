@@ -10,9 +10,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,10 +41,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.behealthy.app.ui.theme.ThemeStyle
+import com.behealthy.app.ui.PageTransitionEffect
 import com.behealthy.app.ui.theme.getThemeColorScheme
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -92,9 +97,11 @@ fun ProfileScreen(
         ThemeSelectionDialog(
             currentTheme = uiState.themeStyle,
             currentAlpha = uiState.backgroundAlpha,
+            currentTransition = uiState.pageTransition,
             onDismiss = { showThemeDialog = false },
             onThemeSelected = { viewModel.updateThemeStyle(it) },
-            onAlphaChange = { viewModel.updateBackgroundAlpha(it) }
+            onAlphaChange = { viewModel.updateBackgroundAlpha(it) },
+            onTransitionChange = { viewModel.updatePageTransition(it) }
         )
     }
     
@@ -142,7 +149,7 @@ fun ProfileScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("我的档案", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 ),
@@ -338,17 +345,11 @@ fun ProfileEditView(
         ThemeSelectionDialog(
             currentTheme = uiState.themeStyle,
             currentAlpha = uiState.backgroundAlpha,
+            currentTransition = uiState.pageTransition,
             onDismiss = { showThemeDialog = false },
-            onThemeSelected = { 
-                viewModel.updateThemeStyle(it)
-                // Dialog stays open to allow adjusting multiple things? 
-                // Or close it? Original code closed it.
-                // showThemeDialog = false // Let user close it manually if they want to adjust slider?
-                // Actually, selecting a theme usually closes dialog.
-                // But transparency slider needs dialog to stay open.
-                // So let's NOT close on theme select, only on Dismiss/Close button.
-            },
-            onAlphaChange = { viewModel.updateBackgroundAlpha(it) }
+            onThemeSelected = { viewModel.updateThemeStyle(it) },
+            onAlphaChange = { viewModel.updateBackgroundAlpha(it) },
+            onTransitionChange = { viewModel.updatePageTransition(it) }
         )
     }
 
@@ -614,11 +615,14 @@ fun BadgeItem(name: String, unlocked: Boolean, icon: ImageVector) {
 fun ThemeSelectionDialog(
     currentTheme: String,
     currentAlpha: Float,
+    currentTransition: String = "Default",
     onDismiss: () -> Unit,
     onThemeSelected: (String) -> Unit,
-    onAlphaChange: (Float) -> Unit
+    onAlphaChange: (Float) -> Unit,
+    onTransitionChange: (String) -> Unit = {}
 ) {
     val themes = ThemeStyle.values()
+    val transitions = PageTransitionEffect.values()
     
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -650,6 +654,27 @@ fun ThemeSelectionDialog(
                         activeTrackColor = MaterialTheme.colorScheme.primary
                     )
                 )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Page Transition Selector
+                Text(
+                    text = "翻页动画效果", 
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(transitions) { transition ->
+                        FilterChip(
+                            selected = transition.name == currentTransition,
+                            onClick = { onTransitionChange(transition.name) },
+                            label = { Text(transition.label) }
+                        )
+                    }
+                }
                 
                 Spacer(modifier = Modifier.height(20.dp))
                 
