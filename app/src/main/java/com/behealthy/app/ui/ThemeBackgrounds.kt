@@ -968,7 +968,67 @@ fun FlyingDoraemon(infiniteTransition: InfiniteTransition, width: Float, height:
 @Composable
 fun MinionsBackground(globalAlpha: Float) {
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFFD600).copy(alpha = 0.1f * globalAlpha)))
-    // Goggles
-    ZenBackground(globalAlpha) // Reusing circle logic for now
+    ParticleBackground(globalAlpha, Color(0xFF005A9C)) // Blue particles on Yellow
+}
+
+@Composable
+fun SnookerBackground(globalAlpha: Float) {
+    val infiniteTransition = rememberInfiniteTransition(label = "snooker")
+    val time by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing)),
+        label = "time"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        // 1. Felt Texture (Gradient)
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(Color(0xFF006400), Color(0xFF004D26)),
+                center = center,
+                radius = size.maxDimension
+            ),
+            alpha = globalAlpha
+        )
+        
+        // 2. Balls
+        val balls = listOf(
+            Color.White, // Cue Ball
+            Color(0xFFD32F2F), // Red
+            Color.Black, // Black
+            Color(0xFFFF4081), // Pink
+            Color(0xFF2196F3), // Blue
+            Color(0xFFFFEB3B), // Yellow
+            Color(0xFF4CAF50)  // Green
+        )
+        
+        balls.forEachIndexed { index, color ->
+            // Pseudo-random motion based on time
+            val seed = index * 100
+            val x = (sin(time * 2 * PI + seed) * 0.4f + 0.5f) * size.width
+            val y = (cos(time * 3 * PI + seed * 2) * 0.4f + 0.5f) * size.height
+            
+            // Shadow
+            drawCircle(
+                color = Color.Black.copy(alpha = 0.3f * globalAlpha),
+                radius = 12.dp.toPx(),
+                center = Offset(x + 5f, y + 5f)
+            )
+            
+            // Ball
+            drawCircle(
+                color = color.copy(alpha = globalAlpha),
+                radius = 12.dp.toPx(),
+                center = Offset(x, y)
+            )
+            
+            // Highlight
+            drawCircle(
+                color = Color.White.copy(alpha = 0.4f * globalAlpha),
+                radius = 4.dp.toPx(),
+                center = Offset(x - 4.dp.toPx(), y - 4.dp.toPx())
+            )
+        }
+    }
 }
 

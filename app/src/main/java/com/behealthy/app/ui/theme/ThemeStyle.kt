@@ -13,5 +13,6 @@ enum class ThemeStyle {
     Badminton,
     FootballWorldCup,
     Zen,
-    Dao
+    Dao,
+    Snooker
 }

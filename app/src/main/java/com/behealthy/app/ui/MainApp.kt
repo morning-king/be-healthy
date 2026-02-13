@@ -326,6 +326,17 @@ fun ThemedIcon(
                 Icon(icon, contentDescription, tint = Color(0xFFD50000), modifier = Modifier.scale(0.6f))
             }
         }
+        ThemeStyle.Snooker -> {
+             Box(contentAlignment = Alignment.Center) {
+                // Red Ball
+                Canvas(modifier = Modifier.size(24.dp)) {
+                   drawCircle(Color(0xFFD32F2F)) // Red
+                   // Shine
+                   drawCircle(Color.White.copy(alpha=0.3f), radius = size.minDimension/4, center = Offset(size.width*0.3f, size.height*0.3f))
+                }
+                Icon(icon, contentDescription, tint = Color.White, modifier = Modifier.scale(0.6f))
+            }
+        }
         else -> {
             Icon(icon, contentDescription)
         }

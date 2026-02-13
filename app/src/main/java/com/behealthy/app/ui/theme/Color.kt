@@ -79,6 +79,27 @@ val WorldCupTertiary = Color(0xFF006400) // Pitch Green
 val WorldCupBackground = Color(0xFFFFF8E1) // Light Gold/Cream
 val WorldCupSurface = Color(0xFFFFFFFF)
 
+// Zen Style
+val ZenPrimary = Color(0xFF4A5D23) // Moss Green
+val ZenSecondary = Color(0xFF8D6E63) // Wood Brown
+val ZenTertiary = Color(0xFFA1887F)
+val ZenBackground = Color(0xFFF1F8E9) // Light Greenish White
+val ZenSurface = Color(0xFFFFFFFF)
+
+// Dao Style
+val DaoPrimary = Color(0xFF212121) // Black
+val DaoSecondary = Color(0xFFBCAAA4) // Muted Brown
+val DaoTertiary = Color(0xFF607D8B)
+val DaoBackground = Color(0xFFFAFAFA)
+val DaoSurface = Color(0xFFFFFFFF)
+
+// Snooker Style
+val SnookerPrimary = Color(0xFFFFD700) // Gold (Brass/Winner)
+val SnookerSecondary = Color(0xFFD32F2F) // Red Ball
+val SnookerTertiary = Color(0xFFFFFFFF) // Cue Ball
+val SnookerBackground = Color(0xFF004D26) // Deep Green Felt
+val SnookerSurface = Color(0xFF003319) // Darker Green
+
 // Chart Colors
 val OppoGreen = Color(0xFF006C4C)
 val BritishRed = Color(0xFFD32F2F)

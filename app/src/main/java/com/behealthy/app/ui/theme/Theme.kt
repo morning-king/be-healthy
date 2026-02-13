@@ -114,7 +114,7 @@ val WallEColorScheme = darkColorScheme(
     tertiary = WallETertiary,
     background = WallEBackground,
     surface = WallESurface,
-    onPrimary = Color.White,
+    onPrimary = Color(0xFF0B1026), // Dark Blue text on Orange Primary for better contrast
     onSecondary = Color.White,
     onTertiary = Color.White,
     onBackground = Color.White,
@@ -213,6 +213,19 @@ val DaoColorScheme = lightColorScheme(
     onSurface = Color.Black
 )
 
+val SnookerColorScheme = lightColorScheme(
+    primary = SnookerPrimary,
+    secondary = SnookerSecondary,
+    tertiary = SnookerTertiary,
+    background = SnookerBackground,
+    surface = SnookerSurface,
+    onPrimary = Color.Black, // Gold is bright, Black text required
+    onSecondary = Color.White,
+    onTertiary = Color.Black,
+    onBackground = Color.White, // White text on Dark Green background
+    onSurface = Color.White
+)
+
 fun getThemeColorScheme(themeStyle: ThemeStyle): androidx.compose.material3.ColorScheme {
     return when (themeStyle) {
         ThemeStyle.Tech -> TechColorScheme
@@ -227,6 +240,7 @@ fun getThemeColorScheme(themeStyle: ThemeStyle): androidx.compose.material3.Colo
         ThemeStyle.FootballWorldCup -> WorldCupColorScheme
         ThemeStyle.Zen -> ZenColorScheme
         ThemeStyle.Dao -> DaoColorScheme
+        ThemeStyle.Snooker -> SnookerColorScheme
         ThemeStyle.Default -> LightColorScheme // Default to Light for preview
     }
 }
@@ -253,6 +267,7 @@ fun BeHealthyTheme(
         ThemeStyle.FootballWorldCup -> WorldCupColorScheme
         ThemeStyle.Zen -> ZenColorScheme
         ThemeStyle.Dao -> DaoColorScheme
+        ThemeStyle.Snooker -> SnookerColorScheme
         ThemeStyle.Default -> {
             when {
                 dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
