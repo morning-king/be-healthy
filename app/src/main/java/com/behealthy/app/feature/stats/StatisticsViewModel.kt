@@ -138,15 +138,25 @@ class StatisticsViewModel @Inject constructor(
                 val dailyStats = dates.map { date ->
                     val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
                     
-                    // Manual Tasks Only (Sum of completed tasks)
-                    val daysTasks = allTasks.filter { it.date == dateStr && it.isCompleted }
-                    // Fix: Only use actualCalories if present, otherwise use workExerciseCalories. Ignore restExerciseCalories.
+                    // Manual Tasks Only (Include incomplete tasks if they have actual data)
+                    val daysTasks = allTasks.filter { it.date == dateStr }
+                    
+                    // Fix: Only use actualCalories if present. If not, use workExerciseCalories ONLY if completed.
                     val taskCalories = daysTasks.sumOf { 
                         if (it.actualCalories > 0) it.actualCalories 
-                        else it.workExerciseCalories 
+                        else if (it.isCompleted) it.workExerciseCalories 
+                        else 0
                     }
-                    val taskMinutes = daysTasks.sumOf { it.actualMinutes.takeIf { m -> m > 0 } ?: it.workExerciseMinutes }
-                    val taskSteps = daysTasks.sumOf { it.actualSteps.takeIf { s -> s > 0 } ?: it.workExerciseSteps }
+                    val taskMinutes = daysTasks.sumOf { 
+                        if (it.actualMinutes > 0) it.actualMinutes
+                        else if (it.isCompleted) it.workExerciseMinutes
+                        else 0
+                    }
+                    val taskSteps = daysTasks.sumOf { 
+                        if (it.actualSteps > 0) it.actualSteps
+                        else if (it.isCompleted) it.workExerciseSteps
+                        else 0
+                    }
                     
                     DailyStatItem(
                         date = date,
@@ -162,9 +172,10 @@ class StatisticsViewModel @Inject constructor(
                 val planStats = plans.map { plan -> 
                     val planTasks = allTasks.filter { it.planId == plan.id }
                     val completedCount = planTasks.count { it.isCompleted }
-                    val totalCalories = planTasks.filter { it.isCompleted }.sumOf { 
+                    val totalCalories = planTasks.sumOf { 
                         if (it.actualCalories > 0) it.actualCalories 
-                        else it.workExerciseCalories
+                        else if (it.isCompleted) it.workExerciseCalories
+                        else 0
                     }
                     
                     PlanStatItem(
