@@ -24,14 +24,15 @@ import kotlin.random.Random
 @Composable
 fun DynamicThemeBackground(
     theme: ThemeStyle,
-    alpha: Float
+    alpha: Float,
+    techIntensity: String = "Standard"
 ) {
     // Global Alpha Wrapper
     // We draw with opacity = alpha.
     
     when (theme) {
         ThemeStyle.Default -> ParticleBackground(alpha, Color(0xFF4CAF50))
-        ThemeStyle.Tech -> TechMatrixBackground(alpha)
+        ThemeStyle.Tech -> TechMatrixBackground(alpha, techIntensity)
         ThemeStyle.Sports -> BouncingBallBackground(alpha, Color(0xFFFF9800)) // Orange
         ThemeStyle.NBA -> NBABackground(alpha)
         ThemeStyle.Badminton -> ShuttlecockBackground(alpha)
@@ -95,18 +96,56 @@ fun ParticleBackground(globalAlpha: Float, color: Color) {
 }
 
 @Composable
-fun TechMatrixBackground(globalAlpha: Float) {
+fun TechMatrixBackground(globalAlpha: Float, intensity: String = "Standard") {
     val infiniteTransition = rememberInfiniteTransition(label = "tech")
     val phase by infiniteTransition.animateFloat(
         initialValue = 0f, targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing)),
         label = "phase"
     )
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing)),
+        label = "rotation"
+    )
 
     Canvas(modifier = Modifier.fillMaxSize()) {
+        // 0. Base Background Color
+        drawRect(color = Color(0xFF0A0A0A))
+    
+        // Colors
+        val neonBlue = Color(0xFF00D4FF)
+        val cyberPurple = Color(0xFF9D4EDD)
+        val matrixGreen = Color(0xFF00FF00)
+
+        // 1. Grid (All intensities)
+        val gridSize = size.width / 10
+        val gridAlpha = 0.2f * globalAlpha
+        
+        // Vertical Lines
+        for (i in 0..10) {
+             drawLine(
+                color = neonBlue.copy(alpha = gridAlpha),
+                start = Offset(i * gridSize, 0f),
+                end = Offset(i * gridSize, size.height),
+                strokeWidth = 1f
+             )
+        }
+        // Horizontal Lines
+        for (i in 0..20) {
+             drawLine(
+                color = cyberPurple.copy(alpha = gridAlpha),
+                start = Offset(0f, i * gridSize),
+                end = Offset(size.width, i * gridSize),
+                strokeWidth = 1f
+             )
+        }
+
+        if (intensity == "Minimal") return@Canvas
+
+        // 2. Data Flow / Matrix Rain (Standard & Vibrant)
         val colWidth = size.width / 20f
         val cols = (size.width / colWidth).toInt() + 1
-        val color = Color(0xFF00FF00) // Matrix Green
         
         for (i in 0 until cols) {
             val speed = 1 + (i % 3)
@@ -114,27 +153,86 @@ fun TechMatrixBackground(globalAlpha: Float) {
             val startY = (i * 100f) % size.height
             val currentY = (startY + offset) % size.height
             
-            drawLine(
-                brush = Brush.verticalGradient(
-                    0f to Color.Transparent,
-                    0.5f to color.copy(alpha = 0.8f * globalAlpha),
-                    1f to Color.Transparent,
-                    startY = currentY,
-                    endY = currentY + size.height * 0.3f
-                ),
-                start = Offset(i * colWidth, currentY),
-                end = Offset(i * colWidth, currentY + size.height * 0.3f),
-                strokeWidth = colWidth * 0.1f
-            )
-            
-            // Draw random characters (rectangles as abstraction)
-            if (i % 2 == 0) {
-                drawRect(
-                    color = color.copy(alpha = 0.4f * globalAlpha),
-                    topLeft = Offset(i * colWidth - colWidth * 0.2f, currentY + size.height * 0.3f),
-                    size = Size(colWidth * 0.4f, colWidth * 0.4f)
+            // Randomly skip some columns for cleaner look
+            if (i % 3 != 0) {
+                drawLine(
+                    brush = Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        0.5f to (if (i % 2 == 0) neonBlue else matrixGreen).copy(alpha = 0.4f * globalAlpha),
+                        1f to Color.Transparent,
+                        startY = currentY,
+                        endY = currentY + size.height * 0.3f
+                    ),
+                    start = Offset(i * colWidth, currentY),
+                    end = Offset(i * colWidth, currentY + size.height * 0.3f),
+                    strokeWidth = colWidth * 0.1f
                 )
             }
+        }
+
+        if (intensity == "Standard") return@Canvas
+
+        // 3. Vibrant: Circuit Board & Holograms
+        
+        // Circuit Nodes (Static for now, could animate)
+        val nodeCount = 6
+        for (i in 0 until nodeCount) {
+             val x = size.width * (0.1f + 0.15f * i)
+             val y = size.height * (0.2f + 0.1f * (i % 3))
+             
+             drawCircle(
+                 color = neonBlue.copy(alpha = 0.8f * globalAlpha),
+                 radius = 10f,
+                 center = Offset(x, y)
+             )
+             // Connecting lines
+             if (i < nodeCount - 1) {
+                 val nextX = size.width * (0.1f + 0.15f * (i + 1))
+                 val nextY = size.height * (0.2f + 0.1f * ((i + 1) % 3))
+                 drawLine(
+                     color = neonBlue.copy(alpha = 0.3f * globalAlpha),
+                     start = Offset(x, y),
+                     end = Offset(nextX, nextY),
+                     strokeWidth = 3f
+                 )
+             }
+        }
+        
+        // Holographic Rotating Circles
+        withTransform({
+            rotate(rotation, center)
+        }) {
+            drawCircle(
+                brush = Brush.sweepGradient(
+                    listOf(
+                        Color.Transparent,
+                        cyberPurple.copy(alpha = 0.6f * globalAlpha),
+                        Color.Transparent,
+                        neonBlue.copy(alpha = 0.6f * globalAlpha),
+                        Color.Transparent
+                    )
+                ),
+                radius = size.minDimension * 0.35f,
+                center = center,
+                style = Stroke(width = 5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(30f, 30f), 0f))
+            )
+        }
+        
+        withTransform({
+            rotate(-rotation * 1.5f, center)
+        }) {
+             drawCircle(
+                brush = Brush.sweepGradient(
+                    listOf(
+                        Color.Transparent,
+                        neonBlue.copy(alpha = 0.4f * globalAlpha),
+                        Color.Transparent
+                    )
+                ),
+                radius = size.minDimension * 0.25f,
+                center = center,
+                style = Stroke(width = 3f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 20f), 0f))
+            )
         }
     }
 }

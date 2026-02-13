@@ -110,9 +110,21 @@ fun ProfileScreen(
         ThemeSelectionDialog(
             currentTheme = uiState.themeStyle,
             currentAlpha = uiState.backgroundAlpha,
+            pageTransition = uiState.pageTransition ?: "Default",
+            zenRotationEnabled = uiState.zenRotationEnabled,
+            zenRotationSpeed = uiState.zenRotationSpeed,
+            zenRotationDirection = uiState.zenRotationDirection,
+            techIntensity = uiState.techIntensity,
+            fontColorMode = uiState.fontColorMode,
             onDismiss = { showThemeDialog = false },
             onThemeSelected = { viewModel.updateThemeStyle(it) },
-            onAlphaChange = { viewModel.updateBackgroundAlpha(it) }
+            onAlphaChange = { viewModel.updateBackgroundAlpha(it) },
+            onPageTransitionChange = { viewModel.updatePageTransition(it) },
+            onZenRotationEnabledChange = { viewModel.updateZenRotationEnabled(it) },
+            onZenRotationSpeedChange = { viewModel.updateZenRotationSpeed(it) },
+            onZenRotationDirectionChange = { viewModel.updateZenRotationDirection(it) },
+            onTechIntensityChange = { viewModel.updateTechIntensity(it) },
+            onFontColorModeChange = { viewModel.updateFontColorMode(it) }
         )
     }
     
@@ -494,6 +506,11 @@ fun ProfileEditView(
         ThemeSelectionDialog(
             currentTheme = uiState.themeStyle,
             currentAlpha = uiState.backgroundAlpha,
+            zenRotationEnabled = uiState.zenRotationEnabled,
+            zenRotationSpeed = uiState.zenRotationSpeed,
+            zenRotationDirection = uiState.zenRotationDirection,
+            techIntensity = uiState.techIntensity,
+            fontColorMode = uiState.fontColorMode,
             onDismiss = { showThemeDialog = false },
             onThemeSelected = { 
                 viewModel.updateThemeStyle(it)
@@ -504,7 +521,12 @@ fun ProfileEditView(
                 // But transparency slider needs dialog to stay open.
                 // So let's NOT close on theme select, only on Dismiss/Close button.
             },
-            onAlphaChange = { viewModel.updateBackgroundAlpha(it) }
+            onAlphaChange = { viewModel.updateBackgroundAlpha(it) },
+            onZenRotationEnabledChange = { viewModel.updateZenRotationEnabled(it) },
+            onZenRotationSpeedChange = { viewModel.updateZenRotationSpeed(it) },
+            onZenRotationDirectionChange = { viewModel.updateZenRotationDirection(it) },
+            onTechIntensityChange = { viewModel.updateTechIntensity(it) },
+            onFontColorModeChange = { viewModel.updateFontColorMode(it) }
         )
     }
 
@@ -798,9 +820,21 @@ fun BadgeItem(name: String, unlocked: Boolean, icon: ImageVector) {
 fun ThemeSelectionDialog(
     currentTheme: String,
     currentAlpha: Float,
+    pageTransition: String = "Default",
+    zenRotationEnabled: Boolean = true,
+    zenRotationSpeed: Float = 5f,
+    zenRotationDirection: String = "Clockwise",
+    techIntensity: String = "Standard",
+    fontColorMode: String = "Auto",
     onDismiss: () -> Unit,
     onThemeSelected: (String) -> Unit,
-    onAlphaChange: (Float) -> Unit
+    onAlphaChange: (Float) -> Unit,
+    onPageTransitionChange: (String) -> Unit = {},
+    onZenRotationEnabledChange: (Boolean) -> Unit = {},
+    onZenRotationSpeedChange: (Float) -> Unit = {},
+    onZenRotationDirectionChange: (String) -> Unit = {},
+    onTechIntensityChange: (String) -> Unit = {},
+    onFontColorModeChange: (String) -> Unit = {}
 ) {
     val themes = ThemeStyle.values()
     
@@ -810,7 +844,7 @@ fun ThemeSelectionDialog(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth().heightIn(max = 700.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState())) {
                 Text(
                     text = "主题风格设置",
                     style = MaterialTheme.typography.titleLarge,
@@ -818,6 +852,149 @@ fun ThemeSelectionDialog(
                 )
                 
                 Spacer(modifier = Modifier.height(20.dp))
+                
+                // Zen Theme Settings
+                if (currentTheme == "Zen") {
+                     Text(
+                        text = "禅意设置",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("禅字旋转", style = MaterialTheme.typography.bodyMedium)
+                        Switch(
+                            checked = zenRotationEnabled,
+                            onCheckedChange = onZenRotationEnabledChange,
+                            colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                    
+                    if (zenRotationEnabled) {
+                        Text(
+                            text = "旋转速度: ${zenRotationSpeed.toInt()}秒/圈", 
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = zenRotationSpeed,
+                            onValueChange = onZenRotationSpeedChange,
+                            valueRange = 1f..20f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                        
+                        Text(
+                            text = "旋转方向", 
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(modifier = Modifier.padding(top = 4.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable { onZenRotationDirectionChange("Clockwise") }
+                            ) {
+                                RadioButton(
+                                    selected = zenRotationDirection == "Clockwise",
+                                    onClick = { onZenRotationDirectionChange("Clockwise") }
+                                )
+                                Text("顺时针", style = MaterialTheme.typography.bodyMedium)
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable { onZenRotationDirectionChange("CounterClockwise") }
+                            ) {
+                                RadioButton(
+                                    selected = zenRotationDirection == "CounterClockwise",
+                                    onClick = { onZenRotationDirectionChange("CounterClockwise") }
+                                )
+                                Text("逆时针", style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                    Divider(modifier = Modifier.padding(vertical = 12.dp))
+                }
+                
+                // Tech Theme Settings
+                if (currentTheme == "Tech") {
+                     Text(
+                        text = "科技感设置",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "视觉强度", 
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp), 
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                         listOf("Minimal", "Standard", "Vibrant").forEach { intensity ->
+                             FilterChip(
+                                 selected = techIntensity == intensity,
+                                 onClick = { onTechIntensityChange(intensity) },
+                                 label = { 
+                                     Text(when(intensity) {
+                                         "Minimal" -> "极简"
+                                         "Standard" -> "标准"
+                                         "Vibrant" -> "炫彩"
+                                         else -> intensity
+                                     }) 
+                                 }
+                             )
+                         }
+                    }
+                    Divider(modifier = Modifier.padding(vertical = 12.dp))
+                }
+
+                // General Settings (Font Color Mode)
+                 Text(
+                    text = "显示设置",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text("字体颜色模式", style = MaterialTheme.typography.bodyMedium)
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp), 
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                     listOf("Auto", "Light", "Dark").forEach { mode ->
+                         Row(
+                             verticalAlignment = Alignment.CenterVertically,
+                             modifier = Modifier.clickable { onFontColorModeChange(mode) }
+                         ) {
+                             RadioButton(
+                                 selected = fontColorMode == mode,
+                                 onClick = { onFontColorModeChange(mode) }
+                             )
+                             Text(when(mode) {
+                                 "Auto" -> "跟随系统"
+                                 "Light" -> "浅色"
+                                 "Dark" -> "深色"
+                                 else -> mode
+                             }, style = MaterialTheme.typography.bodySmall)
+                         }
+                     }
+                }
+                
+                Divider(modifier = Modifier.padding(vertical = 12.dp))
                 
                 // Transparency Slider
                 Text(
@@ -834,6 +1011,42 @@ fun ThemeSelectionDialog(
                         activeTrackColor = MaterialTheme.colorScheme.primary
                     )
                 )
+
+                Divider(modifier = Modifier.padding(vertical = 12.dp))
+
+                // Page Transition Settings
+                Text(
+                    text = "页面转场动画",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                val transitions = listOf("Default", "Fade", "Zoom", "Depth", "Rotate")
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.height(100.dp)
+                ) {
+                    items(transitions) { transition ->
+                        FilterChip(
+                            selected = pageTransition == transition,
+                            onClick = { onPageTransitionChange(transition) },
+                            label = { 
+                                Text(when(transition) {
+                                    "Default" -> "默认"
+                                    "Fade" -> "淡入淡出"
+                                    "Zoom" -> "缩放"
+                                    "Depth" -> "深度"
+                                    "Rotate" -> "旋转"
+                                    else -> transition
+                                }) 
+                            }
+                        )
+                    }
+                }
                 
                 Spacer(modifier = Modifier.height(20.dp))
                 
@@ -842,7 +1055,7 @@ fun ThemeSelectionDialog(
                     columns = GridCells.Fixed(3),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.height(300.dp) // Fixed height for grid inside scrollable column
                 ) {
                     items(themes) { theme ->
                         ThemeCard(

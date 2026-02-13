@@ -17,7 +17,12 @@ data class UserProfile(
     val currentStreak: Int = 0,
     val themeStyle: String = "Default",
     val backgroundAlpha: Float = 0.3f,
-    val pageTransition: String = "Default"
+    val pageTransition: String = "Default",
+    val zenRotationEnabled: Boolean = true,
+    val zenRotationSpeed: Float = 5f,
+    val zenRotationDirection: String = "Clockwise",
+    val techIntensity: String = "Standard",
+    val fontColorMode: String = "Auto"
 )
 
 @Singleton
@@ -46,9 +51,22 @@ class UserProfileRepository @Inject constructor(
             dataSource.backgroundAlpha,
             dataSource.pageTransition
         ) { themeStyle, backgroundAlpha, pageTransition ->
-            UserProfileSettings(themeStyle, backgroundAlpha, pageTransition)
+            BasicThemeSettings(themeStyle, backgroundAlpha, pageTransition)
+        },
+        combine(
+            dataSource.zenRotationEnabled,
+            dataSource.zenRotationSpeed,
+            dataSource.zenRotationDirection
+        ) { enabled, speed, direction ->
+            ZenSettings(enabled, speed, direction)
+        },
+        combine(
+            dataSource.techIntensity,
+            dataSource.fontColorMode
+        ) { techIntensity, fontColorMode ->
+            AdvancedSettings(techIntensity, fontColorMode)
         }
-    ) { info, stats, settings ->
+    ) { info, stats, basicTheme, zen, advanced ->
         UserProfile(
             nickname = info.nickname,
             birthday = info.birthday,
@@ -57,9 +75,14 @@ class UserProfileRepository @Inject constructor(
             totalWorkoutDays = stats.totalWorkoutDays,
             totalMoodRecords = stats.totalMoodRecords,
             currentStreak = stats.currentStreak,
-            themeStyle = settings.themeStyle ?: "Default",
-            backgroundAlpha = settings.backgroundAlpha ?: 0.3f,
-            pageTransition = settings.pageTransition ?: "Default"
+            themeStyle = basicTheme.themeStyle ?: "Default",
+            backgroundAlpha = basicTheme.backgroundAlpha ?: 0.3f,
+            pageTransition = basicTheme.pageTransition ?: "Default",
+            zenRotationEnabled = zen.enabled,
+            zenRotationSpeed = zen.speed,
+            zenRotationDirection = zen.direction,
+            techIntensity = advanced.techIntensity,
+            fontColorMode = advanced.fontColorMode
         )
     }
 
@@ -76,10 +99,21 @@ class UserProfileRepository @Inject constructor(
         val currentStreak: Int
     )
     
-    private data class UserProfileSettings(
+    private data class BasicThemeSettings(
         val themeStyle: String?,
         val backgroundAlpha: Float?,
         val pageTransition: String?
+    )
+    
+    private data class ZenSettings(
+        val enabled: Boolean,
+        val speed: Float,
+        val direction: String
+    )
+    
+    private data class AdvancedSettings(
+        val techIntensity: String,
+        val fontColorMode: String
     )
     
     suspend fun updateNickname(nickname: String) {
@@ -116,5 +150,25 @@ class UserProfileRepository @Inject constructor(
 
     suspend fun updatePageTransition(transition: String) {
         dataSource.updatePageTransition(transition)
+    }
+    
+    suspend fun updateZenRotationEnabled(enabled: Boolean) {
+        dataSource.updateZenRotationEnabled(enabled)
+    }
+    
+    suspend fun updateZenRotationSpeed(speed: Float) {
+        dataSource.updateZenRotationSpeed(speed)
+    }
+    
+    suspend fun updateZenRotationDirection(direction: String) {
+        dataSource.updateZenRotationDirection(direction)
+    }
+    
+    suspend fun updateTechIntensity(intensity: String) {
+        dataSource.updateTechIntensity(intensity)
+    }
+    
+    suspend fun updateFontColorMode(mode: String) {
+        dataSource.updateFontColorMode(mode)
     }
 }

@@ -67,6 +67,8 @@ import com.behealthy.app.ui.theme.BeHealthyTheme
 import com.behealthy.app.ui.theme.ThemeStyle
 import kotlinx.coroutines.launch
 
+import com.behealthy.app.ui.theme.ThemeRotatingIcon
+
 @Composable
 fun MainApp(
     viewModel: MainViewModel = hiltViewModel()
@@ -75,6 +77,12 @@ fun MainApp(
     val themeStyleName by viewModel.themeStyle.collectAsState()
     val backgroundAlpha by viewModel.backgroundAlpha.collectAsState()
     val pageTransitionName by viewModel.pageTransition.collectAsState()
+    
+    val zenRotationEnabled by viewModel.zenRotationEnabled.collectAsState()
+    val zenRotationSpeed by viewModel.zenRotationSpeed.collectAsState()
+    val zenRotationDirection by viewModel.zenRotationDirection.collectAsState()
+    val techIntensity by viewModel.techIntensity.collectAsState()
+    val fontColorMode by viewModel.fontColorMode.collectAsState()
     
     val themeStyle = try {
         ThemeStyle.valueOf(themeStyleName)
@@ -88,10 +96,17 @@ fun MainApp(
         PageTransitionEffect.Default
     }
 
-    BeHealthyTheme(themeStyle = themeStyle) {
-        Box(modifier = Modifier.fillMaxSize()) {
+    BeHealthyTheme(
+        themeStyle = themeStyle,
+        fontColorMode = fontColorMode
+    ) {
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             // Layer 1: Dynamic Background
-            DynamicThemeBackground(theme = themeStyle, alpha = backgroundAlpha)
+            DynamicThemeBackground(
+                theme = themeStyle,
+                alpha = backgroundAlpha,
+                techIntensity = techIntensity
+            )
             
             // Layer 2: App Content
             NavHost(
@@ -114,6 +129,9 @@ fun MainApp(
                 MainScreen(
                     themeStyle = themeStyle,
                     transitionEffect = transitionEffect,
+                    zenRotationEnabled = zenRotationEnabled,
+                    zenRotationSpeed = zenRotationSpeed,
+                    zenRotationDirection = zenRotationDirection,
                     onNavigateToCreatePlan = { rootNavController.navigate("create_plan") },
                     onNavigateToPlanList = { rootNavController.navigate("plan_list") }
                 )
@@ -140,7 +158,10 @@ fun ThemedIcon(
     themeStyle: ThemeStyle,
     icon: ImageVector,
     contentDescription: String,
-    isSelected: Boolean
+    isSelected: Boolean,
+    zenRotationEnabled: Boolean = true,
+    zenRotationSpeed: Float = 5f,
+    zenRotationDirection: String = "Clockwise"
 ) {
     when (themeStyle) {
         ThemeStyle.NBA -> {
@@ -222,18 +243,14 @@ fun ThemedIcon(
              }
          }
         ThemeStyle.Zen -> {
-             Box(contentAlignment = Alignment.Center) {
-                Canvas(modifier = Modifier.size(24.dp)) {
-                    drawArc(
-                        color = Color(0xFF4A5D23),
-                        startAngle = 45f,
-                        sweepAngle = 300f,
-                        useCenter = false,
-                        style = Stroke(width = 2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                    )
-                }
-                Icon(icon, contentDescription, tint = Color(0xFF4A5D23), modifier = Modifier.scale(0.6f))
-            }
+            ThemeRotatingIcon(
+                icon = icon,
+                contentDescription = contentDescription,
+                isSelected = isSelected,
+                rotationEnabled = zenRotationEnabled,
+                rotationSpeedSeconds = zenRotationSpeed,
+                rotationDirection = zenRotationDirection
+            )
         }
         ThemeStyle.Dao -> {
              Box(contentAlignment = Alignment.Center) {
@@ -321,6 +338,9 @@ fun ThemedIcon(
 fun MainScreen(
     themeStyle: ThemeStyle,
     transitionEffect: PageTransitionEffect = PageTransitionEffect.Default,
+    zenRotationEnabled: Boolean = true,
+    zenRotationSpeed: Float = 5f,
+    zenRotationDirection: String = "Clockwise",
     onNavigateToCreatePlan: () -> Unit,
     onNavigateToPlanList: () -> Unit
 ) {
@@ -438,7 +458,10 @@ fun MainScreen(
                                 themeStyle = themeStyle,
                                 icon = if (currentRoute == "calendar") Icons.AutoMirrored.Filled.DirectionsRun else Icons.AutoMirrored.Outlined.DirectionsRun, 
                                 contentDescription = "健身",
-                                isSelected = currentRoute == "calendar"
+                                isSelected = currentRoute == "calendar",
+                                zenRotationEnabled = zenRotationEnabled,
+                                zenRotationSpeed = zenRotationSpeed,
+                                zenRotationDirection = zenRotationDirection
                             ) 
                         },
                         label = { Text("健身") },
@@ -504,15 +527,21 @@ fun MainScreen(
                 modifier = Modifier.fillMaxSize(),
                 userScrollEnabled = true
             ) { page ->
-                when (mainRoutes[page]) {
-                    "calendar" -> CalendarScreen(
-                        onAddPlanClick = onNavigateToCreatePlan
-                    )
-                    "mood" -> MoodTrackingScreen()
-                    "stats" -> StatisticsScreen(
-                        onPlanOverviewClick = onNavigateToPlanList
-                    )
-                    "profile" -> ProfileScreen()
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .applyPageTransition(pagerState, page, transitionEffect)
+                ) {
+                    when (mainRoutes[page]) {
+                        "calendar" -> CalendarScreen(
+                            onAddPlanClick = onNavigateToCreatePlan
+                        )
+                        "mood" -> MoodTrackingScreen()
+                        "stats" -> StatisticsScreen(
+                            onPlanOverviewClick = onNavigateToPlanList
+                        )
+                        "profile" -> ProfileScreen()
+                    }
                 }
             }
         }

@@ -25,5 +25,13 @@ data class ProfileUiState(
     // 主题
     val themeStyle: String = "Default",
     val backgroundAlpha: Float = 0.3f,
-    val pageTransition: String = "Default"
+    val pageTransition: String = "Default",
+    // Zen Theme Settings
+    val zenRotationEnabled: Boolean = true,
+    val zenRotationSpeed: Float = 5f,
+    val zenRotationDirection: String = "Clockwise",
+    // Tech Theme Settings
+    val techIntensity: String = "Standard",
+    // General Settings
+    val fontColorMode: String = "Auto"
 )

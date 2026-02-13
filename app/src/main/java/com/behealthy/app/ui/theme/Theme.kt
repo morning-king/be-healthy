@@ -11,6 +11,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -42,17 +43,17 @@ val DarkColorScheme = darkColorScheme(
     onSurface = Color(0xFFE1E3DF),
 )
 
-val TechColorScheme = lightColorScheme(
+val TechColorScheme = darkColorScheme(
     primary = TechPrimary,
     secondary = TechSecondary,
     tertiary = TechTertiary,
     background = TechBackground,
     surface = TechSurface,
-    onPrimary = Color.White,
+    onPrimary = Color.Black,
     onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF0B132B),
-    onSurface = Color(0xFF0B132B)
+    onTertiary = Color.Black,
+    onBackground = Color.White,
+    onSurface = Color.White
 )
 
 val SportsColorScheme = lightColorScheme(
@@ -107,17 +108,17 @@ val MinionColorScheme = lightColorScheme(
     onSurface = Color(0xFF1A1A1A)
 )
 
-val WallEColorScheme = lightColorScheme(
-    primary = Color(0xFFE67E22),
-    secondary = Color(0xFF34495E),
-    tertiary = Color(0xFF27AE60),
+val WallEColorScheme = darkColorScheme(
+    primary = WallEPrimary,
+    secondary = WallESecondary,
+    tertiary = WallETertiary,
     background = WallEBackground,
     surface = WallESurface,
     onPrimary = Color.White,
     onSecondary = Color.White,
-    onTertiary = Color.Black,
-    onBackground = Color(0xFF2C3E50),
-    onSurface = Color(0xFF2C3E50)
+    onTertiary = Color.White,
+    onBackground = Color.White,
+    onSurface = Color.White
 )
 
 val NewYearColorScheme = lightColorScheme(
@@ -233,12 +234,13 @@ fun getThemeColorScheme(themeStyle: ThemeStyle): androidx.compose.material3.Colo
 @Composable
 fun BeHealthyTheme(
     themeStyle: ThemeStyle = ThemeStyle.Default,
+    fontColorMode: String = "Auto",
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when (themeStyle) {
+    val baseColorScheme = when (themeStyle) {
         ThemeStyle.Tech -> TechColorScheme
         ThemeStyle.Sports -> SportsColorScheme
         ThemeStyle.Cute -> CuteColorScheme
@@ -261,6 +263,25 @@ fun BeHealthyTheme(
                 else -> LightColorScheme
             }
         }
+    }
+    
+    // Apply Font Color Mode Overrides (Force Theme Mode)
+    val colorScheme = when (fontColorMode) {
+        "Light" -> baseColorScheme.copy(
+            background = if (baseColorScheme.background.luminance() < 0.5f) Color(0xFFFBFDF9) else baseColorScheme.background,
+            surface = if (baseColorScheme.surface.luminance() < 0.5f) Color(0xFFFBFDF9) else baseColorScheme.surface,
+            onBackground = Color(0xFF191C1C), // Dark text
+            onSurface = Color(0xFF191C1C),
+            onPrimary = Color.White
+        )
+        "Dark" -> baseColorScheme.copy(
+            background = if (baseColorScheme.background.luminance() > 0.5f) Color(0xFF191C1C) else baseColorScheme.background,
+            surface = if (baseColorScheme.surface.luminance() > 0.5f) Color(0xFF191C1C) else baseColorScheme.surface,
+            onBackground = Color(0xFFE1E3DF), // Light text
+            onSurface = Color(0xFFE1E3DF),
+            onPrimary = Color(0xFF003826)
+        )
+        else -> baseColorScheme // Auto - keep theme defaults
     }
     
     val view = LocalView.current

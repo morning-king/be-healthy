@@ -37,4 +37,44 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = "Default"
         )
+        
+    val zenRotationEnabled = userProfileRepository.userProfile
+        .map { it.zenRotationEnabled }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = true
+        )
+        
+    val zenRotationSpeed = userProfileRepository.userProfile
+        .map { it.zenRotationSpeed }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = 5f
+        )
+        
+    val zenRotationDirection = userProfileRepository.userProfile
+        .map { it.zenRotationDirection }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = "Clockwise"
+        )
+        
+    val techIntensity = userProfileRepository.userProfile
+        .map { it.techIntensity }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = "Standard"
+        )
+        
+    val fontColorMode = userProfileRepository.userProfile
+        .map { it.fontColorMode }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = "Auto"
+        )
 }

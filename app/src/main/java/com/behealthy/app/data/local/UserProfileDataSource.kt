@@ -12,6 +12,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import dagger.hilt.android.qualifiers.ApplicationContext
 
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_profile")
@@ -33,6 +34,13 @@ class UserProfileDataSource @Inject constructor(
         val THEME_STYLE = stringPreferencesKey("theme_style")
         val BACKGROUND_ALPHA = floatPreferencesKey("background_alpha")
         val PAGE_TRANSITION = stringPreferencesKey("page_transition")
+        
+        // New Theme Settings
+        val ZEN_ROTATION_ENABLED = booleanPreferencesKey("zen_rotation_enabled")
+        val ZEN_ROTATION_SPEED = floatPreferencesKey("zen_rotation_speed")
+        val ZEN_ROTATION_DIRECTION = stringPreferencesKey("zen_rotation_direction")
+        val TECH_INTENSITY = stringPreferencesKey("tech_intensity")
+        val FONT_COLOR_MODE = stringPreferencesKey("font_color_mode")
     }
     
     val nickname: Flow<String?> = context.dataStore.data
@@ -89,6 +97,31 @@ class UserProfileDataSource @Inject constructor(
         .map { preferences ->
             preferences[PAGE_TRANSITION]
         }
+        
+    val zenRotationEnabled: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[ZEN_ROTATION_ENABLED] ?: true
+        }
+        
+    val zenRotationSpeed: Flow<Float> = context.dataStore.data
+        .map { preferences ->
+            preferences[ZEN_ROTATION_SPEED] ?: 5f
+        }
+        
+    val zenRotationDirection: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[ZEN_ROTATION_DIRECTION] ?: "Clockwise"
+        }
+        
+    val techIntensity: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[TECH_INTENSITY] ?: "Standard"
+        }
+        
+    val fontColorMode: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[FONT_COLOR_MODE] ?: "Auto"
+        }
     
     suspend fun updateNickname(nickname: String) {
         context.dataStore.edit { preferences ->
@@ -143,6 +176,36 @@ class UserProfileDataSource @Inject constructor(
     suspend fun updatePageTransition(transition: String) {
         context.dataStore.edit { preferences ->
             preferences[PAGE_TRANSITION] = transition
+        }
+    }
+    
+    suspend fun updateZenRotationEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ZEN_ROTATION_ENABLED] = enabled
+        }
+    }
+    
+    suspend fun updateZenRotationSpeed(speed: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[ZEN_ROTATION_SPEED] = speed
+        }
+    }
+    
+    suspend fun updateZenRotationDirection(direction: String) {
+        context.dataStore.edit { preferences ->
+            preferences[ZEN_ROTATION_DIRECTION] = direction
+        }
+    }
+    
+    suspend fun updateTechIntensity(intensity: String) {
+        context.dataStore.edit { preferences ->
+            preferences[TECH_INTENSITY] = intensity
+        }
+    }
+    
+    suspend fun updateFontColorMode(mode: String) {
+        context.dataStore.edit { preferences ->
+            preferences[FONT_COLOR_MODE] = mode
         }
     }
 }

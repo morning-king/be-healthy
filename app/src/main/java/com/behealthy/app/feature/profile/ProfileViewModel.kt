@@ -141,7 +141,12 @@ class ProfileViewModel @Inject constructor(
             birthdayReminderEnabled = achievementStats.birthdayReminder,
             avatarCropEnabled = achievementStats.avatarCrop,
             themeStyle = profile.themeStyle,
-            backgroundAlpha = profile.backgroundAlpha
+            backgroundAlpha = profile.backgroundAlpha,
+            zenRotationEnabled = profile.zenRotationEnabled,
+            zenRotationSpeed = profile.zenRotationSpeed,
+            zenRotationDirection = profile.zenRotationDirection,
+            techIntensity = profile.techIntensity,
+            fontColorMode = profile.fontColorMode
         )
     }
         .stateIn(
@@ -290,6 +295,36 @@ class ProfileViewModel @Inject constructor(
     fun updateBackgroundAlpha(alpha: Float) {
         viewModelScope.launch {
             userProfileRepository.updateBackgroundAlpha(alpha)
+        }
+    }
+
+    fun updateZenRotationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            userProfileRepository.updateZenRotationEnabled(enabled)
+        }
+    }
+
+    fun updateZenRotationSpeed(speed: Float) {
+        viewModelScope.launch {
+            userProfileRepository.updateZenRotationSpeed(speed)
+        }
+    }
+
+    fun updateZenRotationDirection(direction: String) {
+        viewModelScope.launch {
+            userProfileRepository.updateZenRotationDirection(direction)
+        }
+    }
+
+    fun updateTechIntensity(intensity: String) {
+        viewModelScope.launch {
+            userProfileRepository.updateTechIntensity(intensity)
+        }
+    }
+
+    fun updateFontColorMode(mode: String) {
+        viewModelScope.launch {
+            userProfileRepository.updateFontColorMode(mode)
         }
     }
     

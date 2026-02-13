@@ -9,12 +9,12 @@ val TertiaryColor = Color(0xFF3E6373)
 val BackgroundLight = Color(0xFFFBFDF9)
 val SurfaceLight = Color(0xFFFBFDF9)
 
-// Tech Style (Cyberpunk/Neon) - Bright Mode
-val TechPrimary = Color(0xFF00B0FF) // Bright Cyan
-val TechSecondary = Color(0xFF6200EA) // Deep Purple
-val TechTertiary = Color(0xFFFF4081) // Pink
-val TechBackground = Color(0xFFF0F8FF) // Alice Blue (Bright)
-val TechSurface = Color(0xFFE6F2FF) // Light Blue Surface
+// Tech Style (Cyberpunk/Neon) - Dark Mode
+val TechPrimary = Color(0xFF00D4FF) // Neon Blue
+val TechSecondary = Color(0xFF9D4EDD) // Cyber Purple
+val TechTertiary = Color(0xFF00FF00) // Matrix Green
+val TechBackground = Color(0xFF0A0A0A) // Dark Background
+val TechSurface = Color(0xFF1A1A1A) // Dark Surface
 
 // Sports Style (Energetic)
 val SportsPrimary = Color(0xFFFF5722) // Deep Orange
@@ -44,12 +44,12 @@ val MinionTertiary = Color(0xFF808080) // Goggle Silver
 val MinionBackground = Color(0xFFFFFDE7) // Light Yellow
 val MinionSurface = Color(0xFFFFFFFF)
 
-// Wall-E Style (Retro/Vintage)
-val WallEPrimary = Color(0xFFD2691E) // Rust/Chocolate
-val WallESecondary = Color(0xFF5F6A6A) // Vintage Metal
-val WallETertiary = Color(0xFF556B2F) // Dark Olive Green (Nature)
-val WallEBackground = Color(0xFFFAF0E6) // Linen (Old Paper)
-val WallESurface = Color(0xFFFFFFFF)
+// Wall-E Style (Retro/Sci-Fi)
+val WallEPrimary = Color(0xFFE67E22) // Rust/Chocolate
+val WallESecondary = Color(0xFF34495E) // Vintage Metal
+val WallETertiary = Color(0xFF4CAF50) // Plant Green
+val WallEBackground = Color(0xFF0B1026) // Deep Space Blue
+val WallESurface = Color(0xFF151B33)
 
 // New Year Style
 val NewYearPrimary = Color(0xFFFF0000) // Red
