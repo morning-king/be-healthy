@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.ImeAction
 import com.behealthy.app.ui.TypewriterText
@@ -146,7 +147,8 @@ fun CalendarScreen(
     val selectedDate by viewModel.selectedDate.collectAsState()
     val tasksForSelectedDate by viewModel.tasksForSelectedDate.collectAsState()
     val tasksForCurrentMonth by viewModel.tasksForCurrentMonth.collectAsState()
-    val quote by viewModel.dailyQuote.collectAsState()
+    val dailyQuote by viewModel.dailyQuoteState.collectAsState()
+    val dailyPoem by viewModel.dailyPoemState.collectAsState()
     val sportsData by viewModel.currentSportsData.collectAsState()
     val dailyActivity by viewModel.dailyActivityForSelectedDate.collectAsState()
     val holidays by viewModel.holidaysForCurrentYear.collectAsState()
@@ -443,6 +445,7 @@ fun CalendarScreen(
                             }
                         }
                     }
+                    val contentPagerState = rememberPagerState(pageCount = { 2 })
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -451,42 +454,109 @@ fun CalendarScreen(
                             .padding(vertical = 4.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.Top
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                        HorizontalPager(state = contentPagerState, modifier = Modifier.fillMaxSize()) { page ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.Top
                             ) {
-                                Text(text = "每日一言", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                                IconButton(
-                                    onClick = { viewModel.refreshQuote() },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                                if (page == 0) {
+                                    // Daily Quote
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(text = "每日一言", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                        IconButton(
+                                            onClick = { viewModel.refreshDailyQuote() },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    if (dailyQuote != null) {
+                                        val q = dailyQuote!!
+                                        TypewriterText(
+                                            text = q.content, 
+                                            style = MaterialTheme.typography.bodyLarge, 
+                                            fontWeight = FontWeight.Bold,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            rainbow = true
+                                        )
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text(
+                                            text = "—— ${q.source}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontStyle = FontStyle.Italic,
+                                            textAlign = TextAlign.End,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        /*
+                                        if (!q.translation.isNullOrBlank()) {
+                                             Spacer(modifier = Modifier.height(4.dp))
+                                             Text(
+                                                 text = q.translation,
+                                                 style = MaterialTheme.typography.bodySmall,
+                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                 textAlign = TextAlign.Center,
+                                                 modifier = Modifier.fillMaxWidth(),
+                                                 maxLines = 2,
+                                                 overflow = TextOverflow.Ellipsis
+                                             )
+                                        }
+                                        */
+                                    } else {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                        }
+                                    }
+                                } else {
+                                    // Daily Poem
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(text = "每日诗词", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+                                        IconButton(
+                                            onClick = { viewModel.refreshDailyPoem() },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    if (dailyPoem != null) {
+                                        val p = dailyPoem!!
+                                        TypewriterText(
+                                            text = p.content.replace("|", "\n"), 
+                                            style = MaterialTheme.typography.bodyLarge.copy(
+                                                fontFamily = FontFamily.Serif
+                                            ), 
+                                            fontWeight = FontWeight.Bold,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            rainbow = false
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "${p.dynasty} · ${p.author} 《${p.title}》",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontStyle = FontStyle.Italic,
+                                            textAlign = TextAlign.End,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    } else {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                        }
+                                    }
                                 }
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            TypewriterText(
-                                text = quote.content, 
-                                style = MaterialTheme.typography.bodyLarge, 
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth(),
-                                rainbow = true
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = "—— ${quote.source}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontStyle = FontStyle.Italic,
-                                textAlign = TextAlign.End,
-                                modifier = Modifier.fillMaxWidth()
-                            )
                         }
                     }
                     

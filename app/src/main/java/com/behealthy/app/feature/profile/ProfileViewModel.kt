@@ -17,6 +17,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
+import com.behealthy.app.core.backup.BackupManager
+import java.io.File
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
@@ -24,9 +26,57 @@ class ProfileViewModel @Inject constructor(
     private val achievementRepository: AchievementRepository,
     private val fitnessTaskDao: FitnessTaskDao,
     private val moodDao: MoodDao,
-    private val workManager: WorkManager
+    private val workManager: WorkManager,
+    private val backupManager: BackupManager
 ) : ViewModel() {
     
+    private val _backupList = MutableStateFlow<List<File>>(emptyList())
+    val backupList: StateFlow<List<File>> = _backupList.asStateFlow()
+    
+    private val _backupOperationState = MutableStateFlow<String?>(null) // null, "loading", "success", "error"
+    val backupOperationState: StateFlow<String?> = _backupOperationState.asStateFlow()
+
+    fun loadBackups() {
+        viewModelScope.launch {
+            _backupList.value = backupManager.getBackups()
+        }
+    }
+    
+    fun createBackup() {
+        viewModelScope.launch {
+            _backupOperationState.value = "loading"
+            val result = backupManager.createBackup(isManual = true)
+            if (result.isSuccess) {
+                _backupOperationState.value = "success"
+                loadBackups()
+            } else {
+                _backupOperationState.value = "error"
+            }
+            // Reset state after delay
+            kotlinx.coroutines.delay(3000)
+            _backupOperationState.value = null
+        }
+    }
+    
+    fun restoreBackup(file: File) {
+        viewModelScope.launch {
+            _backupOperationState.value = "loading"
+            val result = backupManager.restoreBackup(file)
+            if (result.isSuccess) {
+                _backupOperationState.value = "restore_success"
+            } else {
+                _backupOperationState.value = "error"
+            }
+            kotlinx.coroutines.delay(3000)
+            _backupOperationState.value = null
+        }
+    }
+    
+    fun triggerSync() {
+        val syncRequest = OneTimeWorkRequest.Builder(SyncWorker::class.java).build()
+        workManager.enqueue(syncRequest)
+    }
+
     val uiState: StateFlow<ProfileUiState> = combine(
         userProfileRepository.userProfile,
         combine(
@@ -183,13 +233,6 @@ class ProfileViewModel @Inject constructor(
         }
     }
     
-    fun triggerSync() {
-        val syncRequest = OneTimeWorkRequest.Builder(SyncWorker::class.java)
-            .build()
-        workManager.enqueue(syncRequest)
-        com.behealthy.app.core.logger.AppLogger.log("ProfileViewModel", "Manual sync triggered by user")
-    }
-
     fun updateNoteImage(uri: String) {
         viewModelScope.launch {
             userProfileRepository.updateNoteImage(uri)

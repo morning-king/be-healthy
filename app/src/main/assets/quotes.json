@@ -1,0 +1,478 @@
+[
+  {
+    "content": "世上无难事，只要肯登攀。",
+    "source": "毛泽东",
+    "category": "Motivation",
+    "tags": "chinese,motivation",
+    "translation": "Nothing in the world is difficult for one who sets his mind to it."
+  },
+  {
+    "content": "千里之行，始于足下。",
+    "source": "老子",
+    "category": "Taoism",
+    "tags": "chinese,taoism,philosophy",
+    "translation": "A journey of a thousand miles begins with a single step."
+  },
+  {
+    "content": "Believe you can and you're halfway there.",
+    "source": "Theodore Roosevelt",
+    "category": "Motivation",
+    "tags": "western,motivation",
+    "translation": "相信你可以，你就已经成功了一半。"
+  },
+  {
+    "content": "道可道，非常道；名可名，非常名。",
+    "source": "老子",
+    "category": "Taoism",
+    "tags": "chinese,taoism,philosophy",
+    "translation": "The Tao that can be told is not the eternal Tao; The name that can be named is not the eternal name."
+  },
+  {
+    "content": "上善若水。水善利万物而不争，处众人之所恶，故几于道。",
+    "source": "老子",
+    "category": "Taoism",
+    "tags": "chinese,taoism,philosophy",
+    "translation": "The highest good is like water. Water benefits all things and does not compete. It stays in places others dislike, therefore it is close to the Tao."
+  },
+  {
+    "content": "知人者智，自知者明。胜人者有力，自胜者强。",
+    "source": "老子",
+    "category": "Taoism",
+    "tags": "chinese,taoism,philosophy",
+    "translation": "He who knows others is wise; he who knows himself is enlightened. He who conquers others has force; he who conquers himself is strong."
+  },
+  {
+    "content": "人法地，地法天，天法道，道法自然。",
+    "source": "老子",
+    "category": "Taoism",
+    "tags": "chinese,taoism,philosophy",
+    "translation": "Man models himself on Earth, Earth on Heaven, Heaven on Tao, and Tao on nature."
+  },
+  {
+    "content": "大器晚成，大音希声，大象无形。",
+    "source": "老子",
+    "category": "Taoism",
+    "tags": "chinese,taoism,philosophy",
+    "translation": "Great vessels take long to complete; great sounds are hard to hear; great forms have no shape."
+  },
+  {
+    "content": "知止不殆，可以长久。",
+    "source": "老子",
+    "category": "Taoism",
+    "tags": "chinese,taoism,philosophy",
+    "translation": "He who knows when to stop is not in danger and can endure long."
+  },
+  {
+    "content": "祸兮福之所倚，福兮祸之所伏。",
+    "source": "老子",
+    "category": "Taoism",
+    "tags": "chinese,taoism,philosophy",
+    "translation": "Misfortune is what fortune leans on; fortune is where misfortune hides."
+  },
+  {
+    "content": "治大国，若烹小鲜。",
+    "source": "老子",
+    "category": "Taoism",
+    "tags": "chinese,taoism,philosophy",
+    "translation": "Governing a large country is like cooking a small fish."
+  },
+  {
+    "content": "天下难事，必作于易；天下大事，必作于细。",
+    "source": "老子",
+    "category": "Taoism",
+    "tags": "chinese,taoism,philosophy",
+    "translation": "Difficult things in the world must be done while they are easy; great things in the world must be done while they are small."
+  },
+  {
+    "content": "色不异空，空不异色，色即是空，空即是色。",
+    "source": "心经",
+    "category": "Buddhism",
+    "tags": "chinese,buddhism,philosophy",
+    "translation": "Form does not differ from emptiness, emptiness does not differ from form. Form is emptiness, emptiness is form."
+  },
+  {
+    "content": "一切有为法，如梦幻泡影，如露亦如电，应作如是观。",
+    "source": "金刚经",
+    "category": "Buddhism",
+    "tags": "chinese,buddhism,philosophy",
+    "translation": "All conditioned phenomena are like a dream, an illusion, a bubble, a shadow, like dew or a flash of lightning; thus should you meditate on them."
+  },
+  {
+    "content": "本来无一物，何处惹尘埃。",
+    "source": "六祖坛经",
+    "category": "Buddhism",
+    "tags": "chinese,buddhism,philosophy",
+    "translation": "Originally there is not a single thing, where can dust alight?"
+  },
+  {
+    "content": "兵者，国之大事，死生之地，存亡之道，不可不察也。",
+    "source": "孙子兵法",
+    "category": "Strategy",
+    "tags": "chinese,strategy,philosophy",
+    "translation": "War is a matter of vital importance to the State; the province of life or death; the road to survival or ruin. It is mandatory that it be thoroughly studied."
+  },
+  {
+    "content": "知彼知己，百战不殆。",
+    "source": "孙子兵法",
+    "category": "Strategy",
+    "tags": "chinese,strategy,philosophy",
+    "translation": "Know the enemy and know yourself, and you can fight a hundred battles with no danger of defeat."
+  },
+  {
+    "content": "不战而屈人之兵，善之善者也。",
+    "source": "孙子兵法",
+    "category": "Strategy",
+    "tags": "chinese,strategy,philosophy",
+    "translation": "To subdue the enemy without fighting is the acme of skill."
+  },
+  {
+    "content": "The unexamined life is not worth living.",
+    "source": "Socrates",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "未经审视的人生是不值得过的。"
+  },
+  {
+    "content": "I know that I know nothing.",
+    "source": "Socrates",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "我唯一知道的就是我一无所知。"
+  },
+  {
+    "content": "We are what we repeatedly do. Excellence, then, is not an act, but a habit.",
+    "source": "Aristotle",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "我们反复做的事情造就了我们。因此，优秀不是一种行为，而是一种习惯。"
+  },
+  {
+    "content": "Man is by nature a political animal.",
+    "source": "Aristotle",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "人天生是政治动物。"
+  },
+  {
+    "content": "Wise men speak because they have something to say; Fools because they have to say something.",
+    "source": "Plato",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "智者说话是因为他们有话要说；愚者说话是因为他们想说点什么。"
+  },
+  {
+    "content": "He who has a why to live can bear almost any how.",
+    "source": "Friedrich Nietzsche",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,german",
+    "translation": "知道为什么而活的人，便能生存于任何模式。"
+  },
+  {
+    "content": "That which does not kill us makes us stronger.",
+    "source": "Friedrich Nietzsche",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,german",
+    "translation": "那些杀不死我们的，终将使我们更强大。"
+  },
+  {
+    "content": "Two things fill the mind with ever-increasing wonder and awe... the starry heavens above me and the moral law within me.",
+    "source": "Immanuel Kant",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,german",
+    "translation": "有两件事物越是思考就越觉得神奇和敬畏……头顶的星空和心中的道德律。"
+  },
+  {
+    "content": "I think, therefore I am.",
+    "source": "René Descartes",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,french",
+    "translation": "我思故我在。"
+  },
+  {
+    "content": "Happiness depends upon ourselves.",
+    "source": "Aristotle",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "幸福取决于我们自己。"
+  },
+  {
+    "content": "Knowing yourself is the beginning of all wisdom.",
+    "source": "Aristotle",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "认识你自己是所有智慧的开端。"
+  },
+  {
+    "content": "It is not the strongest of the species that survive, nor the most intelligent, but the one most responsive to change.",
+    "source": "Charles Darwin",
+    "category": "Science",
+    "tags": "western,science,evolution",
+    "translation": "存活下来的物种，不是最强壮的，也不是最聪明的，而是最能适应变化的。"
+  },
+  {
+    "content": "Life is really simple, but we insist on making it complicated.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "生活其实很简单，但我们坚持把它弄得很复杂。"
+  },
+  {
+    "content": "Real knowledge is to know the extent of one's ignorance.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "真正的知识是知道自己无知的程度。"
+  },
+  {
+    "content": "Everything has beauty, but not everyone sees it.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "万物皆有美，但非人人可见。"
+  },
+  {
+    "content": "What the superior man seeks is in himself; what the small man seeks is in others.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "君子求诸己，小人求诸人。"
+  },
+  {
+    "content": "When anger rises, think of the consequences.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "愤怒起时，当思后果。"
+  },
+  {
+    "content": "To see what is right and not to do it is want of courage.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "见义不为，无勇也。"
+  },
+  {
+    "content": "The man who moves a mountain begins by carrying away small stones.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "移山者始于运走小石块。"
+  },
+  {
+    "content": "Study the past if you would define the future.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "欲知未来，先温故往。"
+  },
+  {
+    "content": "Respect yourself and others will respect you.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "敬人者，人恒敬之。"
+  },
+  {
+    "content": "Wheresoever you go, go with all your heart.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "无论去哪里，都要全力以赴。"
+  },
+  {
+    "content": "To be wronged is nothing, unless you continue to remember it.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "被人冤枉没什么，除非你一直记在心上。"
+  },
+  {
+    "content": "It does not matter how slowly you go as long as you do not stop.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "只要不停止，走得多慢都没关系。"
+  },
+  {
+    "content": "Choose a job you love, and you will never have to work a day in your life.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "选择一份你热爱的工作，你一生中就再也不用工作了。"
+  },
+  {
+    "content": "Success depends upon previous preparation, and without such preparation there is sure to be failure.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "凡事预则立，不预则废。"
+  },
+  {
+    "content": "Better a diamond with a flaw than a pebble without.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "宁为有瑕玉，不做无瑕石。"
+  },
+  {
+    "content": "He who learns but does not think, is lost! He who thinks but does not learn is in great danger.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "学而不思则罔，思而不学则殆。"
+  },
+  {
+    "content": "By three methods we may learn wisdom: First, by reflection, which is noblest; Second, by imitation, which is easiest; and third by experience, which is the bitterest.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "我们可以通过三种方法学会智慧：第一是反思，这是最高尚的；第二是模仿，这是最容易的；第三是经验，这是最痛苦的。"
+  },
+  {
+    "content": "When we see men of a contrary character, we should turn inwards and examine ourselves.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "见贤思齐焉，见不贤而内自省也。"
+  },
+  {
+    "content": "The superior man understands what is right; the inferior man understands what will sell.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "君子喻于义，小人喻于利。"
+  },
+  {
+    "content": "If you make a mistake and do not correct it, this is called a mistake.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "过而不改，是谓过矣。"
+  },
+  {
+    "content": "Silence is a true friend who never betrays.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "沉默是永远不会背叛你的忠实朋友。"
+  },
+  {
+    "content": "The gem cannot be polished without friction, nor man perfected without trials.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "玉不琢，不成器；人不学，不知义。"
+  },
+  {
+    "content": "Only the wisest and stupidest of men never change.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "唯上智与下愚不移。"
+  },
+  {
+    "content": "The will to win, the desire to succeed, the urge to reach your full potential... these are the keys that will unlock the door to personal excellence.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "求胜的意志，成功的渴望，发挥潜能的冲动……这些是开启个人卓越之门的钥匙。"
+  },
+  {
+    "content": "Go before the people with your example, and be laborious in their affairs.",
+    "source": "Confucius",
+    "category": "Confucianism",
+    "tags": "chinese,philosophy",
+    "translation": "先之劳之。"
+  },
+  {
+    "content": "Everything flows, nothing stands still.",
+    "source": "Heraclitus",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "万物皆流，无物常驻。"
+  },
+  {
+    "content": "No man ever steps in the same river twice.",
+    "source": "Heraclitus",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "人不能两次踏进同一条河流。"
+  },
+  {
+    "content": "Character is destiny.",
+    "source": "Heraclitus",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "性格即命运。"
+  },
+  {
+    "content": "The only constant in life is change.",
+    "source": "Heraclitus",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "生活中唯一不变的就是变化。"
+  },
+  {
+    "content": "Man is the measure of all things.",
+    "source": "Protagoras",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,greek",
+    "translation": "人是万物的尺度。"
+  },
+  {
+    "content": "Knowledge is power.",
+    "source": "Francis Bacon",
+    "category": "Western Philosophy",
+    "tags": "western,philosophy,english",
+    "translation": "知识就是力量。"
+  },
+  {
+    "content": "I can resist everything except temptation.",
+    "source": "Oscar Wilde",
+    "category": "Literature",
+    "tags": "western,literature,english",
+    "translation": "除了诱惑，我什么都能抵挡。"
+  },
+  {
+    "content": "Be yourself; everyone else is already taken.",
+    "source": "Oscar Wilde",
+    "category": "Literature",
+    "tags": "western,literature,english",
+    "translation": "做你自己，因为别人都有人做了。"
+  },
+  {
+    "content": "To live is the rarest thing in the world. Most people exist, that is all.",
+    "source": "Oscar Wilde",
+    "category": "Literature",
+    "tags": "western,literature,english",
+    "translation": "生活是世上最罕见的事情，大多数人只是存在，仅此而已。"
+  },
+  {
+    "content": "We are all in the gutter, but some of us are looking at the stars.",
+    "source": "Oscar Wilde",
+    "category": "Literature",
+    "tags": "western,literature,english",
+    "translation": "我们都在阴沟里，但仍有人仰望星空。"
+  },
+  {
+    "content": "The truth is rarely pure and never simple.",
+    "source": "Oscar Wilde",
+    "category": "Literature",
+    "tags": "western,literature,english",
+    "translation": "真相很少是纯粹的，也绝不简单。"
+  },
+  {
+    "content": "Experience is the name everyone gives to their mistakes.",
+    "source": "Oscar Wilde",
+    "category": "Literature",
+    "tags": "western,literature,english",
+    "translation": "经验是每个人为自己的错误取的名字。"
+  },
+  {
+    "content": "Always forgive your enemies; nothing annoys them so much.",
+    "source": "Oscar Wilde",
+    "category": "Literature",
+    "tags": "western,literature,english",
+    "translation": "永远宽恕你的敌人，没有什么比这更让他们恼火的了。"
+  }
+]

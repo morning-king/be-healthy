@@ -20,4 +20,7 @@ interface PoemDao {
     
     @Query("SELECT COUNT(*) FROM poems")
     suspend fun getCount(): Int
+
+    @Query("SELECT * FROM poems")
+    suspend fun getPoemsSnapshot(): List<PoemEntity>
 }

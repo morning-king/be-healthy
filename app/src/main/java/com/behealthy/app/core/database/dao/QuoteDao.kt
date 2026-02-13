@@ -20,4 +20,7 @@ interface QuoteDao {
     
     @Query("SELECT COUNT(*) FROM quotes")
     suspend fun getCount(): Int
+
+    @Query("SELECT * FROM quotes")
+    suspend fun getQuotesSnapshot(): List<QuoteEntity>
 }

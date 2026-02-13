@@ -10,6 +10,11 @@ data class PoemEntity(
     val author: String,
     val title: String,
     val dynasty: String,
-    val category: String, // "favorite", "other"
-    val tags: String // comma separated tags
+    val category: String, 
+    val tags: String, // comma separated tags
+    val translation: String? = null,
+    val notes: String? = null,
+    val appreciation: String? = null,
+    val background: String? = null,
+    val genre: String? = null // "WuJue", "QiJue", "WuLv", "QiLv", "CiPai"
 )

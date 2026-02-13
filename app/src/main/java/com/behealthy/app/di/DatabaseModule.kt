@@ -16,6 +16,7 @@ import javax.inject.Singleton
 import com.behealthy.app.core.database.dao.HolidayDao
 import com.behealthy.app.core.database.dao.QuoteDao
 import com.behealthy.app.core.database.dao.PoemDao
+import com.behealthy.app.core.database.dao.DailyHistoryDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -56,13 +57,25 @@ object DatabaseModule {
             }
         }
 
+        val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE quotes ADD COLUMN translation TEXT")
+                database.execSQL("ALTER TABLE poems ADD COLUMN translation TEXT")
+                database.execSQL("ALTER TABLE poems ADD COLUMN notes TEXT")
+                database.execSQL("ALTER TABLE poems ADD COLUMN appreciation TEXT")
+                database.execSQL("ALTER TABLE poems ADD COLUMN background TEXT")
+                database.execSQL("ALTER TABLE poems ADD COLUMN genre TEXT")
+                database.execSQL("CREATE TABLE IF NOT EXISTS `daily_history` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` TEXT NOT NULL, `type` TEXT NOT NULL, `itemId` INTEGER NOT NULL)")
+            }
+        }
+
         return Room.databaseBuilder(
             context,
             BeHealthyDatabase::class.java,
             "behealthy_db"
         )
-        .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
-        .fallbackToDestructiveMigration()
+        .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+        // .fallbackToDestructiveMigration() // Disabled to prevent data loss
         .build()
     }
 
@@ -99,5 +112,10 @@ object DatabaseModule {
     @Provides
     fun providePoemDao(database: BeHealthyDatabase): PoemDao {
         return database.poemDao()
+    }
+
+    @Provides
+    fun provideDailyHistoryDao(database: BeHealthyDatabase): DailyHistoryDao {
+        return database.dailyHistoryDao()
     }
 }

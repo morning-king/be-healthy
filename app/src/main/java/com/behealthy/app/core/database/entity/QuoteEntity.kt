@@ -8,6 +8,7 @@ data class QuoteEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val content: String,
     val source: String,
-    val category: String, // "chinese", "western", etc.
-    val tags: String // comma separated tags
+    val category: String, // "Taoism", "Buddhism", "Western", "Strategy", etc.
+    val tags: String, // comma separated tags
+    val translation: String? = null // Vernacular translation
 )

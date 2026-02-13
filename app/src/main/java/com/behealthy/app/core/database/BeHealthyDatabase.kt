@@ -9,6 +9,7 @@ import com.behealthy.app.core.database.dao.MoodDao
 import com.behealthy.app.core.database.dao.HolidayDao
 import com.behealthy.app.core.database.dao.QuoteDao
 import com.behealthy.app.core.database.dao.PoemDao
+import com.behealthy.app.core.database.dao.DailyHistoryDao
 import com.behealthy.app.core.database.entity.DailyActivityEntity
 import com.behealthy.app.core.database.entity.FitnessPlanEntity
 import com.behealthy.app.core.database.entity.FitnessTaskEntity
@@ -16,6 +17,7 @@ import com.behealthy.app.core.database.entity.MoodRecordEntity
 import com.behealthy.app.core.database.entity.HolidayEntity
 import com.behealthy.app.core.database.entity.QuoteEntity
 import com.behealthy.app.core.database.entity.PoemEntity
+import com.behealthy.app.core.database.entity.DailyHistoryEntity
 
 /**
  * The main Room Database definition for the application.
@@ -33,9 +35,10 @@ import com.behealthy.app.core.database.entity.PoemEntity
         DailyActivityEntity::class,
         HolidayEntity::class,
         QuoteEntity::class,
-        PoemEntity::class
+        PoemEntity::class,
+        DailyHistoryEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class BeHealthyDatabase : RoomDatabase() {
@@ -59,4 +62,7 @@ abstract class BeHealthyDatabase : RoomDatabase() {
 
     /** Returns the DAO for Poems. */
     abstract fun poemDao(): PoemDao
+
+    /** Returns the DAO for Daily History. */
+    abstract fun dailyHistoryDao(): DailyHistoryDao
 }

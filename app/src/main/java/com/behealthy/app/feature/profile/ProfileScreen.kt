@@ -45,6 +45,8 @@ import com.behealthy.app.ui.theme.ThemeStyle
 import com.behealthy.app.ui.theme.getThemeColorScheme
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.io.File
+import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +54,8 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val backupList by viewModel.backupList.collectAsState()
+    val backupOperationState by viewModel.backupOperationState.collectAsState()
     val context = LocalContext.current
     
     var isEditing by remember { 
@@ -80,12 +84,25 @@ fun ProfileScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLogDialog by remember { mutableStateOf(false) }
+    var showBackupDialog by remember { mutableStateOf(false) }
+    
     val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
     if (showLogDialog) {
         LogViewerDialog(
             onDismiss = { showLogDialog = false },
             onTriggerSync = { viewModel.triggerSync() }
+        )
+    }
+
+    if (showBackupDialog) {
+        BackupDialog(
+            backups = backupList,
+            operationState = backupOperationState,
+            onDismiss = { showBackupDialog = false },
+            onCreateBackup = { viewModel.createBackup() },
+            onRestoreBackup = { viewModel.restoreBackup(it) },
+            onLoadBackups = { viewModel.loadBackups() }
         )
     }
 
@@ -186,11 +203,148 @@ fun ProfileScreen(
                     onNoteImageClick = { noteImagePicker.launch("image/*") },
                     onBirthdayClick = { showDatePicker = true },
                     onBirthdayReminderChange = { viewModel.setBirthdayReminderEnabled(it) },
-                    onAvatarCropChange = { viewModel.setAvatarCropEnabled(it) }
+                    onAvatarCropChange = { viewModel.setAvatarCropEnabled(it) },
+                    onShowBackupDialog = { showBackupDialog = true }
                 )
             } else {
                 ProfileDisplayView(uiState = uiState, onEditClick = { isEditing = true })
             }
+        }
+    }
+}
+
+@Composable
+fun BackupDialog(
+    backups: List<File>,
+    operationState: String?,
+    onDismiss: () -> Unit,
+    onCreateBackup: () -> Unit,
+    onRestoreBackup: (File) -> Unit,
+    onLoadBackups: () -> Unit
+) {
+    LaunchedEffect(Unit) {
+        onLoadBackups()
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("数据备份与恢复") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+            ) {
+                if (operationState != null) {
+                    Text(
+                        text = operationState,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
+                Button(
+                    onClick = onCreateBackup,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Backup, contentDescription = null) // Ensure Backup icon is available or use generic
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("立即创建备份")
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = "历史备份列表",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                if (backups.isEmpty()) {
+                    Text(
+                        text = "暂无备份记录",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 16.dp).align(Alignment.CenterHorizontally)
+                    )
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(1),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        items(backups) { file ->
+                            BackupItem(file = file, onRestore = { onRestoreBackup(file) })
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭")
+            }
+        }
+    )
+}
+
+@Composable
+fun BackupItem(file: File, onRestore: () -> Unit) {
+    var showConfirmRestore by remember { mutableStateOf(false) }
+
+    if (showConfirmRestore) {
+        AlertDialog(
+            onDismissRequest = { showConfirmRestore = false },
+            title = { Text("确认恢复") },
+            text = { Text("恢复此备份将覆盖当前所有数据，且不可撤销。建议先创建新备份。确定要继续吗？") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmRestore = false
+                        onRestore()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("确定恢复")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmRestore = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+            .padding(8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = file.name,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1
+            )
+            Text(
+                text = "${file.length() / 1024} KB",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        
+        IconButton(onClick = { showConfirmRestore = true }) {
+            Icon(
+                imageVector = Icons.Default.Restore, // Ensure Restore icon is available or use generic
+                contentDescription = "恢复",
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -315,7 +469,8 @@ fun ProfileEditView(
     onNoteImageClick: () -> Unit,
     onBirthdayClick: () -> Unit,
     onBirthdayReminderChange: (Boolean) -> Unit,
-    onAvatarCropChange: (Boolean) -> Unit
+    onAvatarCropChange: (Boolean) -> Unit,
+    onShowBackupDialog: () -> Unit
 ) {
     // Use local state for inputs to prevent cursor jumping (Item 15)
     var nickname by remember { mutableStateOf(uiState.nickname ?: "") }
@@ -513,7 +668,35 @@ fun ProfileEditView(
                     Text("头像裁剪", style = MaterialTheme.typography.bodyLarge)
                     Switch(checked = uiState.avatarCropEnabled, onCheckedChange = onAvatarCropChange)
                 }
-                // Theme configuration removed - now accessible from main profile view
+
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onShowBackupDialog() }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("数据备份与恢复", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "备份数据库以防止数据丢失", 
+                            style = MaterialTheme.typography.bodySmall, 
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowRight,
+                        contentDescription = "进入备份",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
         

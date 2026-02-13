@@ -32,6 +32,9 @@ import com.behealthy.app.core.repository.SportsData
 import com.behealthy.app.core.network.HolidayDetail
 import com.behealthy.app.data.repository.HolidayRepository
 import com.behealthy.app.core.repository.ContentRepository
+import com.behealthy.app.core.database.entity.QuoteEntity
+import com.behealthy.app.core.database.entity.PoemEntity
+
 
 @HiltViewModel
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -104,31 +107,53 @@ class TaskViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
 
-    data class Quote(val content: String, val source: String)
+    // Daily Content Logic
+    private val _dailyQuoteState = MutableStateFlow<QuoteEntity?>(null)
+    val dailyQuoteState: StateFlow<QuoteEntity?> = _dailyQuoteState.asStateFlow()
 
-    private val _quoteRefreshTrigger = MutableStateFlow(0)
+    private val _dailyPoemState = MutableStateFlow<PoemEntity?>(null)
+    val dailyPoemState: StateFlow<PoemEntity?> = _dailyPoemState.asStateFlow()
 
-    val dailyQuote: StateFlow<Quote> = combine(
-        _selectedDate,
-        _quoteRefreshTrigger,
-        contentRepository.getAllQuotes(),
-        contentRepository.getAllPoems()
-    ) { date, trigger, quotes, poems ->
-        val allItems = mutableListOf<Quote>()
-        allItems.addAll(quotes.map { Quote(it.content, it.source) })
-        allItems.addAll(poems.map { Quote(it.content, "${it.dynasty} · ${it.author} 《${it.title}》") })
-        
-        if (allItems.isEmpty()) {
-            Quote("千里之行，始于足下。", "老子")
-        } else {
-            val seed = date.toEpochDay() + trigger
-            val index = (kotlin.math.abs(seed) % allItems.size).toInt()
-            allItems[index]
+    private var lastLoadedDate: LocalDate? = null
+
+    init {
+        viewModelScope.launch {
+            _selectedDate.collect { date ->
+                if (lastLoadedDate != date) {
+                    loadDailyContent(date)
+                    lastLoadedDate = date
+                }
+            }
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Quote("...", ""))
+        
+        // Trigger generation of tasks for today if needed
+        checkAndGenerateTasks(LocalDate.now())
+    }
+
+    private suspend fun loadDailyContent(date: LocalDate, forceRefreshQuote: Boolean = false, forceRefreshPoem: Boolean = false) {
+        // Load Quote
+        if (forceRefreshQuote || _dailyQuoteState.value == null || lastLoadedDate != date) {
+             val quote = contentRepository.getDailyQuote(date, forceRefresh = forceRefreshQuote)
+             _dailyQuoteState.value = quote
+        }
+        
+        // Load Poem
+        if (forceRefreshPoem || _dailyPoemState.value == null || lastLoadedDate != date) {
+            val poem = contentRepository.getDailyPoem(date, forceRefresh = forceRefreshPoem)
+            _dailyPoemState.value = poem
+        }
+    }
     
-    fun refreshQuote() {
-        _quoteRefreshTrigger.value += 1
+    fun refreshDailyQuote() {
+        viewModelScope.launch {
+            loadDailyContent(_selectedDate.value, forceRefreshQuote = true)
+        }
+    }
+
+    fun refreshDailyPoem() {
+        viewModelScope.launch {
+            loadDailyContent(_selectedDate.value, forceRefreshPoem = true)
+        }
     }
 
     fun forceRefreshSportsData() {
@@ -171,12 +196,6 @@ class TaskViewModel @Inject constructor(
         }
     }
 
-    init {
-        // Trigger generation of tasks for today if needed
-        checkAndGenerateTasks(LocalDate.now())
-        // Auto-sync removed as per new requirement: Tasks are manual only.
-        // startSyncingSportsData()
-    }
 
     /*
     private fun startSyncingSportsData() {
