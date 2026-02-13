@@ -14,6 +14,8 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 import com.behealthy.app.core.database.dao.HolidayDao
+import com.behealthy.app.core.database.dao.QuoteDao
+import com.behealthy.app.core.database.dao.PoemDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -47,12 +49,19 @@ object DatabaseModule {
             }
         }
 
+        val MIGRATION_8_9 = object : androidx.room.migration.Migration(8, 9) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                database.execSQL("CREATE TABLE IF NOT EXISTS `quotes` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `content` TEXT NOT NULL, `source` TEXT NOT NULL, `category` TEXT NOT NULL, `tags` TEXT NOT NULL)")
+                database.execSQL("CREATE TABLE IF NOT EXISTS `poems` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `content` TEXT NOT NULL, `author` TEXT NOT NULL, `title` TEXT NOT NULL, `dynasty` TEXT NOT NULL, `category` TEXT NOT NULL, `tags` TEXT NOT NULL)")
+            }
+        }
+
         return Room.databaseBuilder(
             context,
             BeHealthyDatabase::class.java,
             "behealthy_db"
         )
-        .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+        .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
         .fallbackToDestructiveMigration()
         .build()
     }
@@ -80,5 +89,15 @@ object DatabaseModule {
     @Provides
     fun provideHolidayDao(database: BeHealthyDatabase): HolidayDao {
         return database.holidayDao()
+    }
+
+    @Provides
+    fun provideQuoteDao(database: BeHealthyDatabase): QuoteDao {
+        return database.quoteDao()
+    }
+
+    @Provides
+    fun providePoemDao(database: BeHealthyDatabase): PoemDao {
+        return database.poemDao()
     }
 }

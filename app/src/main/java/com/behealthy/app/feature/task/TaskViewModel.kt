@@ -31,6 +31,7 @@ import com.behealthy.app.core.repository.SportsData
 
 import com.behealthy.app.core.network.HolidayDetail
 import com.behealthy.app.data.repository.HolidayRepository
+import com.behealthy.app.core.repository.ContentRepository
 
 @HiltViewModel
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -40,8 +41,15 @@ class TaskViewModel @Inject constructor(
     private val sportsDataRepository: SportsDataRepository,
     private val dailyActivityRepository: DailyActivityRepository,
     private val weatherRepository: com.behealthy.app.core.repository.WeatherRepository,
-    private val holidayRepository: HolidayRepository
+    private val holidayRepository: HolidayRepository,
+    private val contentRepository: ContentRepository
 ) : ViewModel() {
+
+    init {
+        viewModelScope.launch {
+            contentRepository.initializeDataIfNeeded()
+        }
+    }
 
     val currentSportsData = sportsDataRepository.currentSportsData
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SportsData(0, 0, 0, 0))
@@ -98,72 +106,26 @@ class TaskViewModel @Inject constructor(
 
     data class Quote(val content: String, val source: String)
 
-    private val chineseQuotes = listOf(
-        // 道德经
-        Quote("道可道，非常道；名可名，非常名。", "道德经 · 第一章"),
-        Quote("上善若水。水善利万物而不争，处众人之所恶，故几于道。", "道德经 · 第八章"),
-        Quote("致虚极，守静笃。万物并作，吾以观复。", "道德经 · 第十六章"),
-        Quote("知人者智，自知者明。胜人者有力，自胜者强。", "道德经 · 第三十三章"),
-        Quote("人法地，地法天，天法道，道法自然。", "道德经 · 第二十五章"),
-        Quote("千里之行，始于足下。", "道德经 · 第六十四章"),
-        
-        // 庄子
-        Quote("北冥有鱼，其名为鲲。鲲之大，不知其几千里也。", "庄子 · 逍遥游"),
-        Quote("吾生也有涯，而知也无涯。", "庄子 · 养生主"),
-        Quote("相濡以沫，不如相忘于江湖。", "庄子 · 大宗师"),
-        Quote("君子之交淡若水，小人之交甘若醴。", "庄子 · 山木"),
-        
-        // 传习录 (王阳明)
-        Quote("知是行之始，行是知之成。", "传习录"),
-        Quote("无善无恶心之体，有善有恶意之动。", "传习录"),
-        Quote("知之真切笃实处即是行，行之明觉精察处即是知。", "传习录"),
-        Quote("心即理也。天下又有心外之事，心外之理乎？", "传习录")
-    )
-
-    private val westernQuotes = listOf(
-        // 古希腊三杰
-        Quote("未经审视的人生是不值得过的。", "苏格拉底"),
-        Quote("知足是天然的财富，奢侈是人为的贫穷。", "苏格拉底"),
-        Quote("思维是灵魂的自我对话。", "柏拉图"),
-        Quote("衡量一个人的标准，是看他有权力时如何行事。", "柏拉图"),
-        Quote("幸福属于那些自给自足的人。", "亚里士多德"),
-        Quote("优秀不是一种行为，而是一种习惯。", "亚里士多德"),
-
-        // 英国哲学家
-        Quote("知识就是力量。", "弗朗西斯·培根"),
-        Quote("习惯若不是最好的仆人，便是最差的主人。", "大卫·休谟"),
-        Quote("美好的人生是为爱所激励，为知识所引导的。", "伯特兰·罗素"),
-
-        // 德国哲学家
-        Quote("世界上只有两样东西是值得我们深深景仰的：头上的灿烂星空和内心的崇高道德准则。", "康德"),
-        Quote("那些杀不死你的，终将使你更强大。", "尼采"),
-        Quote("凡是现实的都是合理的，凡是合理的都是现实的。", "黑格尔"),
-
-        // 法国哲学家
-        Quote("我思故我在。", "笛卡尔"),
-        Quote("人生而自由，却无往不在枷锁之中。", "卢梭"),
-        Quote("他人即地狱。", "萨特"),
-        Quote("雪崩时，没有一片雪花是无辜的。", "伏尔泰")
-    )
-
     private val _quoteRefreshTrigger = MutableStateFlow(0)
 
-    val dailyQuote: StateFlow<Quote> = combine(_selectedDate, _quoteRefreshTrigger) { date, trigger ->
-        val seed = date.toEpochDay() + trigger
-        // Weight logic: Chinese (5 days) vs Western (2 days)
-        // We use seed % 7 to simulate a weekly cycle or probability distribution
-        val cycleIndex = (seed % 7).toInt()
+    val dailyQuote: StateFlow<Quote> = combine(
+        _selectedDate,
+        _quoteRefreshTrigger,
+        contentRepository.getAllQuotes(),
+        contentRepository.getAllPoems()
+    ) { date, trigger, quotes, poems ->
+        val allItems = mutableListOf<Quote>()
+        allItems.addAll(quotes.map { Quote(it.content, it.source) })
+        allItems.addAll(poems.map { Quote(it.content, "${it.dynasty} · ${it.author} 《${it.title}》") })
         
-        if (cycleIndex < 5) {
-             // 5/7 probability -> Chinese
-             val index = (seed % chineseQuotes.size).toInt()
-             chineseQuotes[kotlin.math.abs(index)]
+        if (allItems.isEmpty()) {
+            Quote("千里之行，始于足下。", "老子")
         } else {
-             // 2/7 probability -> Western
-             val index = (seed % westernQuotes.size).toInt()
-             westernQuotes[kotlin.math.abs(index)]
+            val seed = date.toEpochDay() + trigger
+            val index = (kotlin.math.abs(seed) % allItems.size).toInt()
+            allItems[index]
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), chineseQuotes[0])
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Quote("...", ""))
     
     fun refreshQuote() {
         _quoteRefreshTrigger.value += 1

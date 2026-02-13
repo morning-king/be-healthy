@@ -174,11 +174,7 @@ fun StatisticsScreen(
                     }
 
                     item {
-                        ExerciseCurveChartCard(state.dailyStats)
-                    }
-
-                    item {
-                        StepTrendChartCard(state.dailyStats)
+                        UnifiedTrendChartCard(state.dailyStats)
                     }
 
                     item {
@@ -1711,4 +1707,205 @@ fun DetailDialog(
             }
         }
     )
+}
+
+@Composable
+fun UnifiedTrendChartCard(dailyStats: List<DailyStatItem>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("综合运动趋势", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Legend
+                    Box(modifier = Modifier.size(8.dp).background(OppoGreen, CircleShape))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("步数", style = MaterialTheme.typography.labelSmall)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Box(modifier = Modifier.size(8.dp).background(BritishRed, CircleShape))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("热量", style = MaterialTheme.typography.labelSmall)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Box(modifier = Modifier.size(8.dp).background(Color(0xFFE6A23C), CircleShape))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("时长", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            UnifiedTrendChart(dailyStats)
+        }
+    }
+}
+
+@Composable
+fun UnifiedTrendChart(dailyStats: List<DailyStatItem>) {
+    if (dailyStats.isEmpty()) {
+        Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+            Text("暂无数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
+
+    val maxSteps = dailyStats.maxOfOrNull { it.steps }?.takeIf { it > 0 } ?: 6000
+    val maxCalories = dailyStats.maxOfOrNull { it.calories }?.takeIf { it > 0 } ?: 100
+    val maxMinutes = dailyStats.maxOfOrNull { it.minutes }?.takeIf { it > 0 } ?: 60
+    
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    
+    val textPaint = remember {
+        Paint().apply {
+            color = android.graphics.Color.GRAY
+            textSize = 24f
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT
+        }
+    }
+
+    Canvas(modifier = Modifier
+        .fillMaxWidth()
+        .height(250.dp)
+        .pointerInput(Unit) {
+            detectTapGestures(
+                onTap = { offset ->
+                    val width = size.width
+                    val pointWidth = width / (dailyStats.size + 0.5f)
+                    val index = ((offset.x - pointWidth / 2) / pointWidth).roundToInt()
+                    if (index in dailyStats.indices) {
+                        selectedIndex = if (selectedIndex == index) null else index
+                    } else {
+                        selectedIndex = null
+                    }
+                }
+            )
+        }
+    ) {
+        val width = size.width
+        val height = size.height
+        val paddingBottom = 40f
+        val chartHeight = height - paddingBottom
+        val pointWidth = width / (dailyStats.size + 0.5f)
+        
+        // Grid
+        val gridLines = 4
+        val rowHeight = chartHeight / gridLines
+        for (i in 0..gridLines) {
+            val y = i * rowHeight
+            drawLine(
+                color = Color.LightGray.copy(alpha = 0.3f),
+                start = Offset(0f, y),
+                end = Offset(width, y),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+        
+        // Paths
+        val stepsPath = Path()
+        val caloriesPath = Path()
+        val minutesPath = Path()
+
+        dailyStats.forEachIndexed { index, item ->
+            val x = index * pointWidth + pointWidth / 2
+            
+            // Steps (Green)
+            val ySteps = chartHeight - (item.steps.toFloat() / maxSteps * chartHeight)
+            if (index == 0) stepsPath.moveTo(x, ySteps) else stepsPath.lineTo(x, ySteps)
+            drawCircle(color = OppoGreen, center = Offset(x, ySteps), radius = 3.dp.toPx())
+
+            // Calories (Red)
+            val yCal = chartHeight - (item.calories.toFloat() / maxCalories * chartHeight)
+            if (index == 0) caloriesPath.moveTo(x, yCal) else caloriesPath.lineTo(x, yCal)
+            drawCircle(color = BritishRed, center = Offset(x, yCal), radius = 3.dp.toPx())
+
+            // Minutes (Orange)
+            val yMin = chartHeight - (item.minutes.toFloat() / maxMinutes * chartHeight)
+            if (index == 0) minutesPath.moveTo(x, yMin) else minutesPath.lineTo(x, yMin)
+            drawCircle(color = Color(0xFFE6A23C), center = Offset(x, yMin), radius = 3.dp.toPx())
+            
+            // Date Label
+            val showLabel = if (dailyStats.size > 10) index % 3 == 0 else true
+            if (showLabel) {
+                drawContext.canvas.nativeCanvas.drawText(
+                    item.date.format(DateTimeFormatter.ofPattern("MM-dd")),
+                    x,
+                    height - 10f,
+                    textPaint.apply { color = android.graphics.Color.GRAY; textSize = 24f; textAlign = Paint.Align.CENTER }
+                )
+            }
+            
+            // Tooltip
+            if (index == selectedIndex) {
+                 drawLine(
+                     color = Color.Gray.copy(alpha = 0.5f),
+                     start = Offset(x, 0f),
+                     end = Offset(x, chartHeight),
+                     strokeWidth = 1.dp.toPx(),
+                     pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                 )
+                 
+                 val tooltipWidth = 280f
+                 val tooltipHeight = 160f
+                 val tooltipX = if (x + tooltipWidth > width) x - tooltipWidth - 20f else x + 20f
+                 val tooltipY = 10f
+                 
+                 drawRoundRect(
+                     color = Color.White.copy(alpha = 0.95f),
+                     topLeft = Offset(tooltipX, tooltipY),
+                     size = androidx.compose.ui.geometry.Size(tooltipWidth, tooltipHeight),
+                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f)
+                 )
+                 drawRoundRect(
+                     color = Color.LightGray,
+                     topLeft = Offset(tooltipX, tooltipY),
+                     size = androidx.compose.ui.geometry.Size(tooltipWidth, tooltipHeight),
+                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f),
+                     style = Stroke(width = 1.dp.toPx())
+                 )
+                 
+                 val dateStr = item.date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                 drawContext.canvas.nativeCanvas.drawText(
+                     dateStr,
+                     tooltipX + 20f,
+                     tooltipY + 40f,
+                     textPaint.apply { textSize = 26f; color = android.graphics.Color.BLACK; textAlign = Paint.Align.LEFT; typeface = Typeface.DEFAULT_BOLD }
+                 )
+                 
+                 drawContext.canvas.nativeCanvas.drawText(
+                     "步数: ${item.steps}",
+                     tooltipX + 20f,
+                     tooltipY + 75f,
+                     textPaint.apply { textSize = 24f; color = android.graphics.Color.parseColor("#4CAF50"); typeface = Typeface.DEFAULT }
+                 )
+                 drawContext.canvas.nativeCanvas.drawText(
+                     "热量: ${item.calories} Kcal",
+                     tooltipX + 20f,
+                     tooltipY + 105f,
+                     textPaint.apply { textSize = 24f; color = android.graphics.Color.parseColor("#B71C1C") }
+                 )
+                 drawContext.canvas.nativeCanvas.drawText(
+                     "时长: ${item.minutes} min",
+                     tooltipX + 20f,
+                     tooltipY + 135f,
+                     textPaint.apply { textSize = 24f; color = android.graphics.Color.parseColor("#E6A23C") }
+                 )
+                 
+                 textPaint.color = android.graphics.Color.GRAY
+                 textPaint.textAlign = Paint.Align.CENTER
+            }
+        }
+        
+        drawPath(path = stepsPath, color = OppoGreen, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+        drawPath(path = caloriesPath, color = BritishRed, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+        drawPath(path = minutesPath, color = Color(0xFFE6A23C), style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+    }
 }

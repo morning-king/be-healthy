@@ -7,11 +7,15 @@ import com.behealthy.app.core.database.dao.FitnessPlanDao
 import com.behealthy.app.core.database.dao.FitnessTaskDao
 import com.behealthy.app.core.database.dao.MoodDao
 import com.behealthy.app.core.database.dao.HolidayDao
+import com.behealthy.app.core.database.dao.QuoteDao
+import com.behealthy.app.core.database.dao.PoemDao
 import com.behealthy.app.core.database.entity.DailyActivityEntity
 import com.behealthy.app.core.database.entity.FitnessPlanEntity
 import com.behealthy.app.core.database.entity.FitnessTaskEntity
 import com.behealthy.app.core.database.entity.MoodRecordEntity
 import com.behealthy.app.core.database.entity.HolidayEntity
+import com.behealthy.app.core.database.entity.QuoteEntity
+import com.behealthy.app.core.database.entity.PoemEntity
 
 /**
  * The main Room Database definition for the application.
@@ -27,9 +31,11 @@ import com.behealthy.app.core.database.entity.HolidayEntity
         FitnessTaskEntity::class,
         MoodRecordEntity::class,
         DailyActivityEntity::class,
-        HolidayEntity::class
+        HolidayEntity::class,
+        QuoteEntity::class,
+        PoemEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class BeHealthyDatabase : RoomDatabase() {
@@ -47,4 +53,10 @@ abstract class BeHealthyDatabase : RoomDatabase() {
     
     /** Returns the DAO for Holiday/Calendar data. */
     abstract fun holidayDao(): HolidayDao
+
+    /** Returns the DAO for Quotes. */
+    abstract fun quoteDao(): QuoteDao
+
+    /** Returns the DAO for Poems. */
+    abstract fun poemDao(): PoemDao
 }
