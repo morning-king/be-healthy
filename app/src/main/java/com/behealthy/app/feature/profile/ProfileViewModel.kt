@@ -298,6 +298,12 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    fun updatePageTransition(transition: String) {
+        viewModelScope.launch {
+            userProfileRepository.updatePageTransition(transition)
+        }
+    }
+
     fun updateZenRotationEnabled(enabled: Boolean) {
         viewModelScope.launch {
             userProfileRepository.updateZenRotationEnabled(enabled)

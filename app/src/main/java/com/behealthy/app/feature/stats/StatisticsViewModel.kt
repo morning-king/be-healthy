@@ -108,126 +108,131 @@ class StatisticsViewModel @Inject constructor(
 
     private fun observeStats() {
         viewModelScope.launch {
-            combine(
-                planRepository.allPlans,
-                taskDao.getAllTasks(),
-                moodDao.getAllMoods(),
-                _selectedDateRange,
-                _customDateRange
-            ) { plans, allTasks, moods, dateRange, customRange ->
-                // Deduplicate moods (keep latest by ID for each date)
-                val uniqueMoods = moods.groupBy { it.date }
-                    .mapValues { (_, records) -> records.maxByOrNull { it.id }!! }
-                    .values.toList()
+            try {
+                combine(
+                    planRepository.allPlans,
+                    taskDao.getAllTasks(),
+                    moodDao.getAllMoods(),
+                    _selectedDateRange,
+                    _customDateRange
+                ) { plans, allTasks, moods, dateRange, customRange ->
+                    // Deduplicate moods (keep latest by ID for each date)
+                    val uniqueMoods = moods.groupBy { it.date }
+                        .mapValues { (_, records) -> records.maxByOrNull { it.id }!! }
+                        .values.toList()
 
-                // Filter Date Range
-                val endDate = if (dateRange == DateRange.CUSTOM && customRange != null) customRange.second else LocalDate.now()
-                val startDate = when (dateRange) {
-                    DateRange.WEEK -> LocalDate.now().minusDays(6)
-                    DateRange.TWO_WEEKS -> LocalDate.now().minusDays(13)
-                    DateRange.MONTH -> LocalDate.now().minusMonths(1)
-                    DateRange.THREE_MONTHS -> LocalDate.now().minusMonths(3)
-                    DateRange.SIX_MONTHS -> LocalDate.now().minusMonths(6)
-                    DateRange.YEAR -> LocalDate.of(LocalDate.now().year, 1, 1)
-                    DateRange.CUSTOM -> customRange?.first ?: LocalDate.now().minusDays(6)
-                }
-                
-                val daysCount = ChronoUnit.DAYS.between(startDate, endDate).toInt() + 1
-                val dates = (0 until daysCount).map { startDate.plusDays(it.toLong()) }
-                
-                val dailyStats = dates.map { date ->
-                    val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
-                    
-                    // Manual Tasks Only (Include incomplete tasks if they have actual data)
-                    val daysTasks = allTasks.filter { it.date == dateStr }
-                    
-                    // Fix: Only use actualCalories if present. If not, use workExerciseCalories ONLY if completed.
-                    val taskCalories = daysTasks.sumOf { 
-                        if (it.actualCalories > 0) it.actualCalories 
-                        else if (it.isCompleted) it.workExerciseCalories 
-                        else 0
-                    }
-                    val taskMinutes = daysTasks.sumOf { 
-                        if (it.actualMinutes > 0) it.actualMinutes
-                        else if (it.isCompleted) it.workExerciseMinutes
-                        else 0
-                    }
-                    val taskSteps = daysTasks.sumOf { 
-                        if (it.actualSteps > 0) it.actualSteps
-                        else if (it.isCompleted) it.workExerciseSteps
-                        else 0
+                    // Filter Date Range
+                    val endDate = if (dateRange == DateRange.CUSTOM && customRange != null) customRange.second else LocalDate.now()
+                    val startDate = when (dateRange) {
+                        DateRange.WEEK -> LocalDate.now().minusDays(6)
+                        DateRange.TWO_WEEKS -> LocalDate.now().minusDays(13)
+                        DateRange.MONTH -> LocalDate.now().minusMonths(1)
+                        DateRange.THREE_MONTHS -> LocalDate.now().minusMonths(3)
+                        DateRange.SIX_MONTHS -> LocalDate.now().minusMonths(6)
+                        DateRange.YEAR -> LocalDate.of(LocalDate.now().year, 1, 1)
+                        DateRange.CUSTOM -> customRange?.first ?: LocalDate.now().minusDays(6)
                     }
                     
-                    DailyStatItem(
-                        date = date,
-                        calories = taskCalories,
-                        minutes = taskMinutes,
-                        steps = taskSteps,
-                        mood = uniqueMoods.find { it.date == dateStr }?.mood,
-                        moodScore = getMoodScore(uniqueMoods.find { it.date == dateStr }?.mood)
-                    )
-                }
-                
-                // Plan Stats (Global)
-                val planStats = plans.map { plan -> 
-                    val planTasks = allTasks.filter { it.planId == plan.id }
-                    val completedCount = planTasks.count { it.isCompleted }
-                    val totalCalories = planTasks.sumOf { 
-                        if (it.actualCalories > 0) it.actualCalories 
-                        else if (it.isCompleted) it.workExerciseCalories
-                        else 0
+                    val daysCount = ChronoUnit.DAYS.between(startDate, endDate).toInt() + 1
+                    val dates = (0 until daysCount).map { startDate.plusDays(it.toLong()) }
+                    
+                    val dailyStats = dates.map { date ->
+                        val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                        
+                        // Manual Tasks Only (Include incomplete tasks if they have actual data)
+                        val daysTasks = allTasks.filter { it.date == dateStr }
+                        
+                        // Fix: Only use actualCalories if present. If not, use workExerciseCalories ONLY if completed.
+                        val taskCalories = daysTasks.sumOf { 
+                            if (it.actualCalories > 0) it.actualCalories 
+                            else if (it.isCompleted) it.workExerciseCalories 
+                            else 0
+                        }
+                        val taskMinutes = daysTasks.sumOf { 
+                            if (it.actualMinutes > 0) it.actualMinutes
+                            else if (it.isCompleted) it.workExerciseMinutes
+                            else 0
+                        }
+                        val taskSteps = daysTasks.sumOf { 
+                            if (it.actualSteps > 0) it.actualSteps
+                            else if (it.isCompleted) it.workExerciseSteps
+                            else 0
+                        }
+                        
+                        DailyStatItem(
+                            date = date,
+                            calories = taskCalories,
+                            minutes = taskMinutes,
+                            steps = taskSteps,
+                            mood = uniqueMoods.find { it.date == dateStr }?.mood,
+                            moodScore = getMoodScore(uniqueMoods.find { it.date == dateStr }?.mood)
+                        )
                     }
                     
-                    PlanStatItem(
-                        planName = plan.name,
-                        totalTasks = planTasks.size,
-                        completedTasks = completedCount,
-                        pendingTasks = planTasks.size - completedCount,
-                        totalCalories = totalCalories
-                    )
-                }
-                
-                // Calculate Summary
-                val totalSteps = dailyStats.sumOf { it.steps }
-                val totalCalories = dailyStats.sumOf { it.calories }
-                val totalDuration = dailyStats.sumOf { it.minutes }
-                val daysWithData = dailyStats.count { it.steps > 0 || it.calories > 0 || it.minutes > 0 }
-                
-                val avgCalories = if (daysWithData > 0) totalCalories / daysWithData else 0
-                val avgDuration = if (daysWithData > 0) totalDuration / daysWithData else 0
-                val avgSteps = if (daysWithData > 0) totalSteps / daysWithData else 0
-                val maxSteps = dailyStats.maxOfOrNull { it.steps } ?: 0
-                val stepGoalDays = dailyStats.count { it.steps >= 6000 } // Assuming 6000 is a reasonable default goal
-                
-                // Analysis
-                val exerciseAnalysis = generateExerciseAnalysis(dailyStats)
-                val moodAnalysis = generateMoodAnalysis(dailyStats)
+                    // Plan Stats (Global)
+                    val planStats = plans.map { plan -> 
+                        val planTasks = allTasks.filter { it.planId == plan.id }
+                        val completedCount = planTasks.count { it.isCompleted }
+                        val totalCalories = planTasks.sumOf { 
+                            if (it.actualCalories > 0) it.actualCalories 
+                            else if (it.isCompleted) it.workExerciseCalories
+                            else 0
+                        }
+                        
+                        PlanStatItem(
+                            planName = plan.name,
+                            totalTasks = planTasks.size,
+                            completedTasks = completedCount,
+                            pendingTasks = planTasks.size - completedCount,
+                            totalCalories = totalCalories
+                        )
+                    }
+                    
+                    // Calculate Summary
+                    val totalSteps = dailyStats.sumOf { it.steps }
+                    val totalCalories = dailyStats.sumOf { it.calories }
+                    val totalDuration = dailyStats.sumOf { it.minutes }
+                    val daysWithData = dailyStats.count { it.steps > 0 || it.calories > 0 || it.minutes > 0 }
+                    
+                    val avgCalories = if (daysWithData > 0) totalCalories / daysWithData else 0
+                    val avgDuration = if (daysWithData > 0) totalDuration / daysWithData else 0
+                    val avgSteps = if (daysWithData > 0) totalSteps / daysWithData else 0
+                    val maxSteps = dailyStats.maxOfOrNull { it.steps } ?: 0
+                    val stepGoalDays = dailyStats.count { it.steps >= 6000 } // Assuming 6000 is a reasonable default goal
+                    
+                    // Analysis
+                    val exerciseAnalysis = generateExerciseAnalysis(dailyStats)
+                    val moodAnalysis = generateMoodAnalysis(dailyStats)
 
-                val moodMap = dailyStats.mapNotNull { it.mood }.groupingBy { it }.eachCount()
-                
-                StatisticsUiState(
-                    selectedDateRange = dateRange,
-                    totalExerciseDays = daysWithData,
-                    totalCaloriesBurned = totalCalories,
-                    totalDurationMinutes = totalDuration,
-                    totalSteps = totalSteps,
-                    avgCaloriesBurned = avgCalories,
-                    avgDurationMinutes = avgDuration,
-                    avgSteps = avgSteps,
-                    maxSteps = maxSteps,
-                    stepGoalDays = stepGoalDays,
-                    totalPlans = plans.size,
-                    activePlans = plans.count { it.isActive },
-                    completedPlans = plans.size - plans.count { it.isActive },
-                    planStats = planStats,
-                    moodStats = moodMap,
-                    dailyStats = dailyStats,
-                    exerciseAnalysis = exerciseAnalysis,
-                    moodAnalysis = moodAnalysis,
-                    isLoading = false
-                )
-            }.collect { state ->
-                _uiState.value = state
+                    val moodMap = dailyStats.mapNotNull { it.mood }.groupingBy { it }.eachCount()
+                    
+                    StatisticsUiState(
+                        selectedDateRange = dateRange,
+                        totalExerciseDays = daysWithData,
+                        totalCaloriesBurned = totalCalories,
+                        totalDurationMinutes = totalDuration,
+                        totalSteps = totalSteps,
+                        avgCaloriesBurned = avgCalories,
+                        avgDurationMinutes = avgDuration,
+                        avgSteps = avgSteps,
+                        maxSteps = maxSteps,
+                        stepGoalDays = stepGoalDays,
+                        totalPlans = plans.size,
+                        activePlans = plans.count { it.isActive },
+                        completedPlans = plans.size - plans.count { it.isActive },
+                        planStats = planStats,
+                        moodStats = moodMap,
+                        dailyStats = dailyStats,
+                        exerciseAnalysis = exerciseAnalysis,
+                        moodAnalysis = moodAnalysis,
+                        isLoading = false
+                    )
+                }.collect { state ->
+                    _uiState.value = state
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
     }

@@ -34,8 +34,11 @@
     *   集成农历和节假日显示。
     *   集成天气信息（OpenMeteo API）。
 *   **🎨 多主题支持 (Theming)**：
-    *   内置多种个性化主题（Wall-E, Doraemon, Tech, Nature, NBA 等）。
+    *   内置多种个性化主题（Wall-E, Doraemon, Tech, Nature, NBA, Snooker, Zen 等）。
+    *   **[NEW]** 支持全局字体颜色模式切换 (浅色/深色/自动)，适配不同视觉需求。
+    *   **[NEW]** 深度可定制的动态背景（如 Zen 旋转、赛博朋克粒子强度调节）。
     *   全应用配色动态切换，包括 Loading 动画。
+    *   符合 WCAG 2.1 AA 无障碍标准（部分高对比度主题）。
 *   **🔗 健康同步 (Health Connect)**：
     *   集成 Android Health Connect，自动同步步数、卡路里、距离等健康数据。
     *   支持 OPPO 设备传感器数据接入。

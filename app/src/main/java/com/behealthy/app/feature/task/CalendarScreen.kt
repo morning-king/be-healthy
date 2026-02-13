@@ -234,12 +234,16 @@ fun CalendarScreen(
                         onClick = {
                             val today = LocalDate.now()
                             // Scroll Pager to Today's Month
-                            val diffMonths = YearMonth.from(today).monthValue - currentMonth.monthValue + 
-                                            (YearMonth.from(today).year - currentMonth.year) * 12
-                            val targetPage = initialPage + diffMonths
-                            scope.launch {
-                                pagerState.animateScrollToPage(targetPage)
-                                viewModel.updateSelectedDate(today)
+                            try {
+                                val diffMonths = YearMonth.from(today).monthValue - currentMonth.monthValue + 
+                                                (YearMonth.from(today).year - currentMonth.year) * 12
+                                val targetPage = (initialPage + diffMonths).coerceIn(0, pagerState.pageCount - 1)
+                                scope.launch {
+                                    pagerState.animateScrollToPage(targetPage)
+                                    viewModel.updateSelectedDate(today)
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
                             }
                         },
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-13
+
+### Added
+- **Global Font Color Mode**: New setting in Profile -> Theme to force Light, Dark, or Auto font colors across all themes.
+- **Zen Theme Rotation**: Dynamic "Zen" (禅) character rotation with customizable speed, direction, and toggle controls.
+- **Tech Theme Customization**: Enhanced Cyberpunk matrix background with 3 intensity levels (Minimal, Standard, Vibrant).
+- **Back to Today**: Added "Back to Today" floating action button in Fitness Plan and Task Calendar screens.
+
+### Fixed
+- **WCAG Compliance**: Optimized "Snooker" and "Wall-E" themes to meet WCAG 2.1 AA contrast standards.
+- **Crash Fixes**: Resolved crashes in Statistics screen (missing content) and "Back to Today" navigation.
+- **Compilation**: Resolved conflicting function overloads in Theme and Statistics modules.
+- **Persistence**: Fixed issue where theme settings were not correctly persisting across sessions.
+
 ## [1.1.0] - 2026-02-13
 
 ### Added

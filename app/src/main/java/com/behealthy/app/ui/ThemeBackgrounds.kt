@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.util.lerp
 import androidx.compose.foundation.background
 import com.behealthy.app.ui.theme.ThemeStyle
+import androidx.compose.ui.unit.dp
 import kotlin.math.*
 import kotlin.random.Random
 
@@ -43,6 +44,7 @@ fun DynamicThemeBackground(
         ThemeStyle.NewYear -> NewYearBackground(alpha)
         ThemeStyle.Zen -> ZenBackground(alpha)
         ThemeStyle.Dao -> DaoBackground(alpha)
+        ThemeStyle.Snooker -> SnookerBackground(alpha)
         ThemeStyle.FootballWorldCup -> BouncingBallBackground(alpha, Color.White) // Reuse
     }
 }
@@ -109,15 +111,15 @@ fun TechMatrixBackground(globalAlpha: Float, intensity: String = "Standard") {
         label = "rotation"
     )
 
+    // Colors
+    val neonBlue = Color(0xFF00D4FF)
+    val cyberPurple = Color(0xFF9D4EDD)
+    val matrixGreen = Color(0xFF00FF00)
+
     Canvas(modifier = Modifier.fillMaxSize()) {
         // 0. Base Background Color
         drawRect(color = Color(0xFF0A0A0A))
     
-        // Colors
-        val neonBlue = Color(0xFF00D4FF)
-        val cyberPurple = Color(0xFF9D4EDD)
-        val matrixGreen = Color(0xFF00FF00)
-
         // 1. Grid (All intensities)
         val gridSize = size.width / 10
         val gridAlpha = 0.2f * globalAlpha
@@ -140,10 +142,16 @@ fun TechMatrixBackground(globalAlpha: Float, intensity: String = "Standard") {
                 strokeWidth = 1f
              )
         }
+    }
+    
+    // 2. Dynamic Particles (Overlay)
+    ParticleBackground(globalAlpha = globalAlpha * 0.5f, color = Color(0xFF00D4FF))
 
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        
         if (intensity == "Minimal") return@Canvas
 
-        // 2. Data Flow / Matrix Rain (Standard & Vibrant)
+        // 3. Data Flow / Matrix Rain (Standard & Vibrant)
         val colWidth = size.width / 20f
         val cols = (size.width / colWidth).toInt() + 1
         
@@ -695,7 +703,7 @@ fun DoraemonBackground(globalAlpha: Float) {
             val r = random.nextFloat() * 3f + 1f
             val alphaBase = random.nextFloat() * 0.5f + 0.3f
             // Simple twinkle simulation based on position parity and floatOffset
-            val twinkle = (sin(floatOffset * 2 + i) + 1f) / 2f 
+            val twinkle = ((sin((floatOffset * 2 + i).toDouble()) + 1f) / 2f).toFloat()
             
             drawCircle(
                 color = Color.White.copy(alpha = alphaBase * twinkle * globalAlpha),
@@ -854,15 +862,15 @@ fun FlyingDoraemon(infiniteTransition: InfiniteTransition, width: Float, height:
      )
      
      // Position: 
-     val doraX = width * (0.5f + 0.35f * sin(time))
-     val doraY = height * (0.35f + 0.2f * sin(time * 1.3f)) 
+     val doraX = width * (0.5f + 0.35f * sin(time.toDouble()).toFloat())
+     val doraY = height * (0.35f + 0.2f * sin((time * 1.3f).toDouble()).toFloat())
      
      val doraSize = width * 0.15f
      
      Canvas(modifier = Modifier.fillMaxSize()) {
          withTransform({
              translate(left = doraX - doraSize/2, top = doraY - doraSize/2)
-             rotate(10f * cos(time), pivot = Offset(doraSize/2, doraSize/2))
+             rotate((10f * cos(time.toDouble())).toFloat(), pivot = Offset(doraSize/2, doraSize/2))
          }) {
              val headColor = Color(0xFF00A0E9).copy(alpha = 0.9f * globalAlpha)
              val faceColor = Color.White.copy(alpha = 0.95f * globalAlpha)
@@ -1005,8 +1013,8 @@ fun SnookerBackground(globalAlpha: Float) {
         balls.forEachIndexed { index, color ->
             // Pseudo-random motion based on time
             val seed = index * 100
-            val x = (sin(time * 2 * PI + seed) * 0.4f + 0.5f) * size.width
-            val y = (cos(time * 3 * PI + seed * 2) * 0.4f + 0.5f) * size.height
+            val x = (sin((time * 2 * PI + seed).toDouble()).toFloat() * 0.4f + 0.5f) * size.width
+            val y = (cos((time * 3 * PI + seed * 2).toDouble()).toFloat() * 0.4f + 0.5f) * size.height
             
             // Shadow
             drawCircle(

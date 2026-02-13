@@ -53,7 +53,9 @@ val TechColorScheme = darkColorScheme(
     onSecondary = Color.White,
     onTertiary = Color.Black,
     onBackground = Color.White,
-    onSurface = Color.White
+    onSurface = Color.White,
+    outline = TechPrimary, // Neon Blue for borders
+    surfaceVariant = Color(0xFF2A2A2A) // Slightly lighter for card backgrounds
 )
 
 val SportsColorScheme = lightColorScheme(
@@ -174,12 +176,6 @@ val WorldCupColorScheme = lightColorScheme(
 )
 
 // Zen Style
-val ZenPrimary = Color(0xFF4A5D23) // Moss Green
-val ZenSecondary = Color(0xFF8D6E63) // Wood Brown
-val ZenTertiary = Color(0xFFA1887F)
-val ZenBackground = Color(0xFFF1F8E9) // Light Greenish White
-val ZenSurface = Color(0xFFFFFFFF)
-
 val ZenColorScheme = lightColorScheme(
     primary = ZenPrimary,
     secondary = ZenSecondary,
@@ -194,12 +190,6 @@ val ZenColorScheme = lightColorScheme(
 )
 
 // Dao Style
-val DaoPrimary = Color(0xFF212121) // Black
-val DaoSecondary = Color(0xFFBCAAA4) // Muted Brown
-val DaoTertiary = Color(0xFF607D8B)
-val DaoBackground = Color(0xFFFAFAFA)
-val DaoSurface = Color(0xFFFFFFFF)
-
 val DaoColorScheme = lightColorScheme(
     primary = DaoPrimary,
     secondary = DaoSecondary,
@@ -308,19 +298,16 @@ fun BeHealthyTheme(
             // Determine if we should use light status bar icons (dark text)
             // If background is light, we want dark text (isAppearanceLightStatusBars = true)
             // If background is dark, we want light text (isAppearanceLightStatusBars = false)
-            // Simple heuristic: check luminance or hardcode based on theme
-            val isLightBackground = when (themeStyle) {
-                ThemeStyle.Tech -> false // Dark background -> light text
-                ThemeStyle.Default -> !darkTheme
-                else -> true // Sports, Cute, Doraemon, Minions are mostly light
-            }
+            val isLightBackground = colorScheme.background.luminance() > 0.5f
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = isLightBackground
         }
     }
 
+    val typography = if (themeStyle == ThemeStyle.Tech) TechTypography else Typography
+
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = typography,
         content = content
     )
 }

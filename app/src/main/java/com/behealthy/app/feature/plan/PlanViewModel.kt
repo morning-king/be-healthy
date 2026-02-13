@@ -27,8 +27,13 @@ class PlanViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            repository.allPlans.collect { plans ->
-                _uiState.value = _uiState.value.copy(plans = plans)
+            try {
+                repository.allPlans.collect { plans ->
+                    _uiState.value = _uiState.value.copy(plans = plans)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Optionally set an error state
             }
         }
     }
@@ -56,29 +61,34 @@ class PlanViewModel @Inject constructor(
         note: String
     ) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            kotlinx.coroutines.delay(1000) // Show loading animation
-            
-            val newPlan = FitnessPlanEntity(
-                name = name,
-                durationType = durationType,
-                durationQuantity = durationQuantity,
-                startDate = startDate,
-                endDate = endDate,
-                targetText = targetText,
-                workDayDietEnabled = workDayDiet,
-                workDayExerciseEnabled = workDayExercise,
-                workDayExerciseMinutes = workDayMinutes,
-                workDayExerciseSteps = workDaySteps,
-                workDayExerciseCalories = workDayCalories,
-                restDayDietEnabled = restDayDiet,
-                restDayExerciseEnabled = restDayExercise,
-                restDayExerciseMinutes = restDayMinutes,
-                restDayExerciseCalories = restDayCalories,
-                note = note
-            )
-            repository.createPlan(newPlan)
-            _uiState.value = _uiState.value.copy(isLoading = false, isSaved = true)
+            try {
+                _uiState.value = _uiState.value.copy(isLoading = true)
+                kotlinx.coroutines.delay(1000) // Show loading animation
+                
+                val newPlan = FitnessPlanEntity(
+                    name = name,
+                    durationType = durationType,
+                    durationQuantity = durationQuantity,
+                    startDate = startDate,
+                    endDate = endDate,
+                    targetText = targetText,
+                    workDayDietEnabled = workDayDiet,
+                    workDayExerciseEnabled = workDayExercise,
+                    workDayExerciseMinutes = workDayMinutes,
+                    workDayExerciseSteps = workDaySteps,
+                    workDayExerciseCalories = workDayCalories,
+                    restDayDietEnabled = restDayDiet,
+                    restDayExerciseEnabled = restDayExercise,
+                    restDayExerciseMinutes = restDayMinutes,
+                    restDayExerciseCalories = restDayCalories,
+                    note = note
+                )
+                repository.createPlan(newPlan)
+                _uiState.value = _uiState.value.copy(isLoading = false, isSaved = true)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
         }
     }
 }

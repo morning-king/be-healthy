@@ -840,13 +840,21 @@ fun ThemeSelectionDialog(
     
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxWidth().heightIn(max = 700.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f) // Limit height to 90% of screen
         ) {
-            Column(modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState())) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()), // Make content scrollable
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
-                    text = "主题风格设置",
+                    text = "主题设置",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -1133,6 +1141,7 @@ fun getThemeName(themeStyleName: String): String {
             ThemeStyle.FootballWorldCup -> "世界杯"
             ThemeStyle.Zen -> "禅"
             ThemeStyle.Dao -> "道"
+            ThemeStyle.Snooker -> "斯洛克"
         }
     } catch (e: Exception) {
         "默认风格"

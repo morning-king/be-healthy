@@ -48,6 +48,19 @@ fun PlanListScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    val today = LocalDate.now().toString()
+                    startDateQuery = today
+                    endDateQuery = today
+                    searchQuery = ""
+                },
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Text("回到今天", modifier = Modifier.padding(horizontal = 16.dp))
+            }
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(16.dp)) {

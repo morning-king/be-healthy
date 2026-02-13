@@ -366,66 +366,51 @@ class TaskViewModel @Inject constructor(
 
     private fun checkAndGenerateTasks(date: LocalDate) {
         viewModelScope.launch {
-            val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
-            
-            // Sync logic removed: Tasks should not be overwritten by historical daily_activity
-            /*
-            val dailyActivity = dailyActivityRepository.getDailyActivity(dateStr).first()
-            if (dailyActivity != null) {
-                val tasks = taskRepository.getTasksByDate(dateStr).first()
-                tasks.forEach { task ->
-                     if (task.actualSteps != dailyActivity.steps ||
-                         task.actualCalories != dailyActivity.calories ||
-                         task.actualMinutes != dailyActivity.durationMinutes ||
-                         task.actualDistanceMeters != dailyActivity.distanceMeters) {
-                             
-                         val updatedTask = task.copy(
-                             actualSteps = dailyActivity.steps,
-                             actualCalories = dailyActivity.calories,
-                             actualMinutes = dailyActivity.durationMinutes,
-                             actualDistanceMeters = dailyActivity.distanceMeters
-                         )
-                         taskRepository.updateTask(updatedTask)
-                     }
-                }
-            }
-            */
-            
-            // Simplified logic: Load all active plans, check if task exists for each plan on this date, if not create one.
-            val plans = planRepository.activePlans.first()
-            plans.forEach { plan ->
-                // Check if date is within plan range
-                val planStart = LocalDate.parse(plan.startDate, DateTimeFormatter.ISO_LOCAL_DATE)
-                val planEnd = LocalDate.parse(plan.endDate, DateTimeFormatter.ISO_LOCAL_DATE)
+            try {
+                val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
                 
-                if (!date.isBefore(planStart) && !date.isAfter(planEnd)) {
-                    val existing = taskRepository.getTaskByDateAndPlan(dateStr, plan.id)
-                    if (existing == null) {
-                        // Create new task
-                        val isWorkDay = isWorkDay(date)
+                // Simplified logic: Load all active plans, check if task exists for each plan on this date, if not create one.
+                val plans = planRepository.activePlans.first()
+                plans.forEach { plan ->
+                    try {
+                        // Check if date is within plan range
+                        val planStart = LocalDate.parse(plan.startDate, DateTimeFormatter.ISO_LOCAL_DATE)
+                        val planEnd = LocalDate.parse(plan.endDate, DateTimeFormatter.ISO_LOCAL_DATE)
                         
-                        // Check if task should be enabled for this day type
-                        val dietEnabled = if (isWorkDay) plan.workDayDietEnabled else plan.restDayDietEnabled
-                        val exerciseEnabled = if (isWorkDay) plan.workDayExerciseEnabled else plan.restDayExerciseEnabled
-                        
-                        if (dietEnabled || exerciseEnabled) {
-                            val newTask = FitnessTaskEntity(
-                                planId = plan.id,
-                                date = dateStr,
-                                // Populate based on plan config
-                                workExerciseMinutes = if (isWorkDay) plan.workDayExerciseMinutes else 0,
-                                workExerciseSteps = if (isWorkDay) plan.workDayExerciseSteps else 0,
-                                workExerciseCalories = if (isWorkDay) plan.workDayExerciseCalories else 0,
-                                restExerciseMinutes = if (!isWorkDay) plan.restDayExerciseMinutes else 0,
-                                restExerciseCalories = if (!isWorkDay) plan.restDayExerciseCalories else 0,
-                                // Initialize empty fields
-                                workExerciseTypes = if (isWorkDay && exerciseEnabled) "WALK" else "",
-                                note = ""
-                            )
-                            taskRepository.createTask(newTask)
+                        if (!date.isBefore(planStart) && !date.isAfter(planEnd)) {
+                            val existing = taskRepository.getTaskByDateAndPlan(dateStr, plan.id)
+                            if (existing == null) {
+                                // Create new task
+                                val isWorkDay = isWorkDay(date)
+                                
+                                // Check if task should be enabled for this day type
+                                val dietEnabled = if (isWorkDay) plan.workDayDietEnabled else plan.restDayDietEnabled
+                                val exerciseEnabled = if (isWorkDay) plan.workDayExerciseEnabled else plan.restDayExerciseEnabled
+                                
+                                if (dietEnabled || exerciseEnabled) {
+                                    val newTask = FitnessTaskEntity(
+                                        planId = plan.id,
+                                        date = dateStr,
+                                        // Populate based on plan config
+                                        workExerciseMinutes = if (isWorkDay) plan.workDayExerciseMinutes else 0,
+                                        workExerciseSteps = if (isWorkDay) plan.workDayExerciseSteps else 0,
+                                        workExerciseCalories = if (isWorkDay) plan.workDayExerciseCalories else 0,
+                                        restExerciseMinutes = if (!isWorkDay) plan.restDayExerciseMinutes else 0,
+                                        restExerciseCalories = if (!isWorkDay) plan.restDayExerciseCalories else 0,
+                                        // Initialize empty fields
+                                        workExerciseTypes = if (isWorkDay && exerciseEnabled) "WALK" else "",
+                                        note = ""
+                                    )
+                                    taskRepository.createTask(newTask)
+                                }
+                            }
                         }
+                    } catch (e: Exception) {
+                        android.util.Log.e("TaskViewModel", "Error processing plan ${plan.id}", e)
                     }
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("TaskViewModel", "Error generating tasks", e)
             }
         }
     }
