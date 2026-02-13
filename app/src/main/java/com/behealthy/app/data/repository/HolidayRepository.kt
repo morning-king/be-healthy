@@ -87,31 +87,6 @@ class HolidayRepository @Inject constructor(
         }
     }
 
-    suspend fun updateHoliday(date: String, isHoliday: Boolean, name: String) {
-        withContext(Dispatchers.IO) {
-            val entity = HolidayEntity(
-                date = date,
-                name = name,
-                type = if (isHoliday) 1 else 2,
-                wage = if (isHoliday) 3 else 1,
-                holiday = isHoliday
-            )
-            // Assuming insertHolidays handles conflict via OnConflictStrategy.REPLACE
-            holidayDao.insertHolidays(listOf(entity))
-            
-            // Update Cache
-            try {
-                val year = date.substring(0, 4).toInt()
-                val key = date.substring(5)
-                val currentMap = holidayCache[year]?.toMutableMap() ?: mutableMapOf()
-                currentMap[key] = HolidayDetail(isHoliday, name, if (isHoliday) 3 else 1, date)
-                holidayCache[year] = currentMap
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
     private fun getMock2026Holidays(): Map<String, HolidayDetail> {
         val map = mutableMapOf<String, HolidayDetail>()
         

@@ -30,7 +30,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 
 @Composable
 fun AchievementOverlay(
-    achievement: SubmissionAchievement,
+    achievement: TaskViewModel.SubmissionAchievement,
     onDismiss: () -> Unit
 ) {
     var isVisible by remember { mutableStateOf(false) }
@@ -65,7 +65,7 @@ fun AchievementOverlay(
 }
 
 @Composable
-fun AchievementCard(achievement: SubmissionAchievement) {
+fun AchievementCard(achievement: TaskViewModel.SubmissionAchievement) {
     val infiniteTransition = rememberInfiniteTransition(label = "rays")
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,

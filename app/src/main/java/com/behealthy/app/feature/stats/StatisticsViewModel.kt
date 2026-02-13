@@ -38,7 +38,6 @@ data class DailyStatItem(
     val calories: Int,
     val minutes: Int,
     val steps: Int,
-    val weight: Float,
     val mood: String?,
     val moodScore: Int // 1-5 scale
 )
@@ -137,7 +136,6 @@ class StatisticsViewModel @Inject constructor(
                     
                     // Manual Tasks Only (Sum of completed tasks)
                     val daysTasks = allTasks.filter { it.date == dateStr && it.isCompleted }
-                    val allDaysTasks = allTasks.filter { it.date == dateStr }
                     // Fix: Only use actualCalories if present, otherwise use workExerciseCalories. Ignore restExerciseCalories.
                     val taskCalories = daysTasks.sumOf { 
                         if (it.actualCalories > 0) it.actualCalories 
@@ -145,14 +143,12 @@ class StatisticsViewModel @Inject constructor(
                     }
                     val taskMinutes = daysTasks.sumOf { it.actualMinutes.takeIf { m -> m > 0 } ?: it.workExerciseMinutes }
                     val taskSteps = daysTasks.sumOf { it.actualSteps.takeIf { s -> s > 0 } ?: it.workExerciseSteps }
-                    val dayWeight = allDaysTasks.map { it.weight }.filter { it > 0 }.maxOrNull() ?: 0f
                     
                     DailyStatItem(
                         date = date,
                         calories = taskCalories,
                         minutes = taskMinutes,
                         steps = taskSteps,
-                        weight = dayWeight,
                         mood = uniqueMoods.find { it.date == dateStr }?.mood,
                         moodScore = getMoodScore(uniqueMoods.find { it.date == dateStr }?.mood)
                     )

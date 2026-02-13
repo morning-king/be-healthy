@@ -166,10 +166,10 @@ val WorldCupColorScheme = lightColorScheme(
     background = WorldCupBackground,
     surface = WorldCupSurface,
     onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.Black,
-    onBackground = WorldCupTextPrimary,
-    onSurface = WorldCupTextPrimary
+    onSecondary = Color.Black,
+    onTertiary = Color.White,
+    onBackground = Color.Black,
+    onSurface = Color.Black
 )
 
 // Zen Style
@@ -267,6 +267,7 @@ fun BeHealthyTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
+            @Suppress("DEPRECATION")
             window.statusBarColor = colorScheme.background.toArgb()
             // Determine if we should use light status bar icons (dark text)
             // If background is light, we want dark text (isAppearanceLightStatusBars = true)

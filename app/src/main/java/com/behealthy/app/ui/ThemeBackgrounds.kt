@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -19,7 +18,6 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.util.lerp
 import androidx.compose.foundation.background
 import com.behealthy.app.ui.theme.ThemeStyle
-import com.behealthy.app.ui.theme.*
 import kotlin.math.*
 import kotlin.random.Random
 
@@ -44,110 +42,8 @@ fun DynamicThemeBackground(
         ThemeStyle.NewYear -> NewYearBackground(alpha)
         ThemeStyle.Zen -> ZenBackground(alpha)
         ThemeStyle.Dao -> DaoBackground(alpha)
-        ThemeStyle.FootballWorldCup -> FootballWorldCupBackground(alpha) // Reuse
+        ThemeStyle.FootballWorldCup -> BouncingBallBackground(alpha, Color.White) // Reuse
     }
-}
-
-@Composable
-fun BouncingBallBackground(globalAlpha: Float, color: Color) {
-    val balls = remember {
-        List(10) {
-            Particle(
-                x = Random.nextFloat(),
-                y = Random.nextFloat(),
-                speedX = (Random.nextFloat() - 0.5f) * 0.02f,
-                speedY = (Random.nextFloat() - 0.5f) * 0.02f,
-                radius = 0.03f + Random.nextFloat() * 0.04f,
-                alpha = 0.4f + Random.nextFloat() * 0.4f
-            )
-        }
-    }
-    
-    val infiniteTransition = rememberInfiniteTransition(label = "bouncing")
-    val time by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(10000, easing = LinearEasing)),
-        label = "time"
-    )
-
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        balls.forEachIndexed { index, ball ->
-            // Simulate simple movement with wall bouncing
-            // Using time to drive position is tricky without state, so we use a periodic function
-            // Position = abs((initial + speed * time) % 2 - 1) which creates a triangle wave (bounce 0..1..0)
-            
-            val totalSpeed = 10f // multiplier
-            val rawX = ball.x + ball.speedX * time * 1000f + index * 0.1f
-            val rawY = ball.y + ball.speedY * time * 1000f + index * 0.1f
-            
-            // Triangle wave for bouncing effect: 2 * abs(round(x) - x) is not quite it.
-            // Let's use: abs((x % 2) - 1) * 2? No.
-            // Correct triangle wave 0->1->0: abs((t % 2) - 1)
-            // But we want to stay in 0..1.
-            // Let's just use simple modulo for now as wrapping, or sine wave for bouncing
-            
-            val cx = (sin(rawX * 2 * PI) + 1) / 2 * size.width
-            val cy = (cos(rawY * 2 * PI) + 1) / 2 * size.height
-            
-            drawCircle(
-                color = color.copy(alpha = ball.alpha * globalAlpha),
-                radius = size.minDimension * ball.radius,
-                center = Offset(cx.toFloat(), cy.toFloat())
-            )
-        }
-    }
-}
-
-@Composable
-fun TechMatrixBackground(globalAlpha: Float) {
-    // Matrix Rain Effect
-    val infiniteTransition = rememberInfiniteTransition(label = "matrix")
-    val time by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing)),
-        label = "time"
-    )
-
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val cols = 20
-        val colWidth = size.width / cols
-        
-        for (i in 0 until cols) {
-            val speed = 0.5f + (i % 5) * 0.1f
-            val offset = i * 0.3f
-            val yPos = ((time * speed + offset) % 1f) * size.height
-            
-            // Draw trail
-            for (j in 0 until 5) {
-                val alpha = (1f - j * 0.2f) * globalAlpha
-                if (alpha > 0) {
-                    val charY = yPos - j * 30f
-                    if (charY > 0) {
-                        drawRect(
-                            color = Color(0xFF00FF00).copy(alpha = alpha),
-                            topLeft = Offset(i * colWidth, charY),
-                            size = Size(colWidth * 0.6f, 20f)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun NBABackground(globalAlpha: Float) {
-    AdvancedNBABackground(modifier = Modifier.alpha(globalAlpha), alpha = globalAlpha)
-}
-
-@Composable
-fun ZenBackground(globalAlpha: Float) {
-    AdvancedZenBackground(Modifier.alpha(globalAlpha))
-}
-
-@Composable
-fun DaoBackground(globalAlpha: Float) {
-    AdvancedDaoBackground(Modifier.alpha(globalAlpha))
 }
 
 // --- Shared Particle System ---
@@ -168,54 +64,389 @@ fun ParticleBackground(globalAlpha: Float, color: Color) {
         label = "time"
     )
 
-    // Optimize: Create particles once with normalized coordinates (0..1)
-    val particles = remember {
-        List(20) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val particles = List(20) {
             val r = Random(it)
             Particle(
-                x = r.nextFloat(), // Normalized 0..1
-                y = r.nextFloat(), // Normalized 0..1
+                x = size.width * r.nextFloat(),
+                y = size.height * r.nextFloat(),
                 speedX = 0f,
-                speedY = -0.5f - r.nextFloat(), // Relative speed
-                radius = 0.02f + r.nextFloat() * 0.03f, // Relative radius base
+                speedY = -0.5f - r.nextFloat(), // Move up slowly
+                radius = (size.minDimension * 0.02f) + r.nextFloat() * (size.minDimension * 0.03f),
                 alpha = 0.2f + r.nextFloat() * 0.4f,
                 phase = r.nextFloat() * 2 * PI.toFloat()
             )
         }
-    }
-
-    Canvas(modifier = Modifier.fillMaxSize()) {
+        
         particles.forEachIndexed { index, p ->
-            val offset = (time * 0.5f * (1 + index % 3)) // Normalized offset
-            // Wrap y: (p.y - offset) modulo 1.0 (but handling negative correctly)
-            val rawY = p.y - offset
-            val currentYNormalized = rawY - floor(rawY)
-            
-            val currentX = p.x * size.width
-            val currentY = currentYNormalized * size.height
-            
-            val baseRadius = size.minDimension * p.radius
+            val offset = (time * size.height * 0.5f * (1 + index % 3))
+            val currentY = (p.y - offset + size.height * 2) % size.height
             
             // Simple breathing effect
             val breathing = sin(time * 20 + p.phase) * 0.2f + 1f
             
             drawCircle(
                 color = color.copy(alpha = p.alpha * globalAlpha),
-                radius = baseRadius * breathing,
-                center = Offset(currentX, currentY)
+                radius = p.radius * breathing,
+                center = Offset(p.x, currentY)
             )
         }
     }
 }
 
 @Composable
-fun WallEBackground(globalAlpha: Float) {
-    AdvancedWallEBackground(globalAlpha)
+fun TechMatrixBackground(globalAlpha: Float) {
+    val infiniteTransition = rememberInfiniteTransition(label = "tech")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing)),
+        label = "phase"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val colWidth = size.width / 20f
+        val cols = (size.width / colWidth).toInt() + 1
+        val color = Color(0xFF00FF00) // Matrix Green
+        
+        for (i in 0 until cols) {
+            val speed = 1 + (i % 3)
+            val offset = (phase * size.height * speed) % size.height
+            val startY = (i * 100f) % size.height
+            val currentY = (startY + offset) % size.height
+            
+            drawLine(
+                brush = Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    0.5f to color.copy(alpha = 0.8f * globalAlpha),
+                    1f to Color.Transparent,
+                    startY = currentY,
+                    endY = currentY + size.height * 0.3f
+                ),
+                start = Offset(i * colWidth, currentY),
+                end = Offset(i * colWidth, currentY + size.height * 0.3f),
+                strokeWidth = colWidth * 0.1f
+            )
+            
+            // Draw random characters (rectangles as abstraction)
+            if (i % 2 == 0) {
+                drawRect(
+                    color = color.copy(alpha = 0.4f * globalAlpha),
+                    topLeft = Offset(i * colWidth - colWidth * 0.2f, currentY + size.height * 0.3f),
+                    size = Size(colWidth * 0.4f, colWidth * 0.4f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ZenBackground(globalAlpha: Float) {
+    val infiniteTransition = rememberInfiniteTransition(label = "zen")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(30000, easing = LinearEasing)),
+        label = "rotation"
+    )
+    val breathe by infiniteTransition.animateFloat(
+        initialValue = 0.8f, targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathe"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val center = center
+        val baseRadius = size.minDimension * 0.3f
+        
+        // Background faint ripples
+        for (i in 1..3) {
+            drawCircle(
+                color = Color.Black.copy(alpha = 0.03f * globalAlpha),
+                radius = baseRadius * i * 0.5f * breathe,
+                center = center
+            )
+        }
+        
+        // Enso Circle (Ink style approximation using multiple arcs)
+        rotate(rotation, center) {
+            // Main stroke
+            drawArc(
+                brush = Brush.sweepGradient(
+                    0f to Color.Transparent,
+                    0.2f to Color.Black.copy(alpha = 0.6f * globalAlpha),
+                    0.8f to Color.Black.copy(alpha = 0.8f * globalAlpha),
+                    1f to Color.Transparent
+                ),
+                startAngle = 0f,
+                sweepAngle = 320f,
+                useCenter = false,
+                topLeft = Offset(center.x - baseRadius, center.y - baseRadius),
+                size = Size(baseRadius * 2, baseRadius * 2),
+                style = Stroke(width = baseRadius * 0.15f, cap = StrokeCap.Round)
+            )
+            
+            // Secondary inner stroke (faster rotation simulated by offset)
+            rotate(rotation * 1.5f, center) {
+                drawArc(
+                    brush = Brush.sweepGradient(
+                        0f to Color.Transparent,
+                        0.5f to Color.Black.copy(alpha = 0.4f * globalAlpha),
+                        1f to Color.Transparent
+                    ),
+                    startAngle = 120f,
+                    sweepAngle = 200f,
+                    useCenter = false,
+                    topLeft = Offset(center.x - baseRadius * 0.8f, center.y - baseRadius * 0.8f),
+                    size = Size(baseRadius * 1.6f, baseRadius * 1.6f),
+                    style = Stroke(width = baseRadius * 0.05f, cap = StrokeCap.Round)
+                )
+            }
+        }
+        
+        // Stone/Center balance
+        drawCircle(
+            color = Color.Black.copy(alpha = 0.8f * globalAlpha),
+            radius = baseRadius * 0.05f,
+            center = center
+        )
+    }
+}
+
+@Composable
+fun DaoBackground(globalAlpha: Float) {
+    val infiniteTransition = rememberInfiniteTransition(label = "dao")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing)),
+        label = "rotation"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val center = center
+        val radius = size.minDimension * 0.25f
+        
+        // Bagua (Trigrams) Background - Simplified as dashed rings
+        rotate(-rotation * 0.5f, center) {
+            drawCircle(
+                brush = Brush.sweepGradient(
+                    listOf(
+                        Color.Black.copy(alpha = 0.1f * globalAlpha),
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.1f * globalAlpha),
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.1f * globalAlpha),
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.1f * globalAlpha),
+                        Color.Transparent
+                    )
+                ),
+                radius = radius * 1.5f,
+                center = center,
+                style = Stroke(width = radius * 0.4f)
+            )
+        }
+        
+        // Yin Yang Symbol
+        rotate(rotation, center) {
+            // Glow
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.5f * globalAlpha), Color.Transparent),
+                    center = center,
+                    radius = radius * 1.2f
+                ),
+                radius = radius * 1.2f,
+                center = center
+            )
+            
+            // Main Circle
+            drawCircle(
+                color = Color.White.copy(alpha = 0.9f * globalAlpha),
+                radius = radius,
+                center = center
+            )
+            
+            // Black Half (Yin)
+            drawArc(
+                color = Color.Black.copy(alpha = 0.9f * globalAlpha),
+                startAngle = 90f,
+                sweepAngle = 180f,
+                useCenter = true,
+                topLeft = Offset(center.x - radius, center.y - radius),
+                size = Size(radius * 2, radius * 2)
+            )
+            
+            // Top White Curve
+            drawCircle(
+                color = Color.White.copy(alpha = 0.9f * globalAlpha),
+                radius = radius / 2,
+                center = Offset(center.x, center.y - radius / 2)
+            )
+            
+            // Bottom Black Curve
+            drawCircle(
+                color = Color.Black.copy(alpha = 0.9f * globalAlpha),
+                radius = radius / 2,
+                center = Offset(center.x, center.y + radius / 2)
+            )
+            
+            // Top Black Dot
+            drawCircle(
+                color = Color.Black.copy(alpha = 0.9f * globalAlpha),
+                radius = radius / 6,
+                center = Offset(center.x, center.y - radius / 2)
+            )
+            
+            // Bottom White Dot
+            drawCircle(
+                color = Color.White.copy(alpha = 0.9f * globalAlpha),
+                radius = radius / 6,
+                center = Offset(center.x, center.y + radius / 2)
+            )
+        }
+    }
+}
+
+@Composable
+fun NBABackground(globalAlpha: Float) {
+    val infiniteTransition = rememberInfiniteTransition(label = "nba")
+    // Ball movement along a path
+    val progress by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing)),
+        label = "ballProgress"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        // 1. Draw Court Floor (Wood pattern lines)
+        val courtColor = Color(0xFFE0C398).copy(alpha = 0.2f * globalAlpha)
+        val lineColor = Color.White.copy(alpha = 0.3f * globalAlpha)
+        
+        // Draw wood planks
+        val plankWidth = size.width / 10
+        for (i in 0..10) {
+            drawLine(
+                color = courtColor,
+                start = Offset(i * plankWidth, 0f),
+                end = Offset(i * plankWidth, size.height),
+                strokeWidth = 2f
+            )
+        }
+        
+        // Draw Court Lines (Half court abstraction)
+        drawCircle(
+            color = lineColor,
+            radius = size.width * 0.2f,
+            center = center,
+            style = Stroke(width = 4f)
+        )
+        drawLine(
+            color = lineColor,
+            start = Offset(0f, center.y),
+            end = Offset(size.width, center.y),
+            strokeWidth = 4f
+        )
+        drawRect(
+            color = lineColor,
+            topLeft = Offset(size.width * 0.3f, size.height * 0.7f),
+            size = Size(size.width * 0.4f, size.height * 0.3f),
+            style = Stroke(width = 4f)
+        )
+        
+        // 2. Bouncing Ball with Arc Trajectory
+        val ballRadius = size.minDimension * 0.08f
+        val startX = size.width * 0.1f
+        val endX = size.width * 0.9f
+        val groundY = size.height * 0.8f
+        val peakY = size.height * 0.4f
+        
+        // Map progress to X
+        val currentX = lerp(startX, endX, progress)
+        // Parabolic arc for Y: y = 4 * height * (x - 0.5)^2 + peak
+        // Normalized x (0..1)
+        val normX = progress
+        // Simple bounce parabola: 1 - 4*(x-0.5)^2 maps 0->0, 0.5->1, 1->0
+        val heightFactor = 1f - 4f * (normX - 0.5f).pow(2)
+        val currentY = lerp(groundY, peakY, heightFactor)
+        
+        // Ball Shadow
+        val shadowRadius = ballRadius * (1f - heightFactor * 0.3f)
+        drawOval(
+            color = Color.Black.copy(alpha = 0.1f * globalAlpha * (1f - heightFactor)),
+            topLeft = Offset(currentX - shadowRadius, groundY + ballRadius * 0.5f),
+            size = Size(shadowRadius * 2, ballRadius * 0.2f)
+        )
+        
+        // Draw Ball (Orange with lines)
+        drawCircle(
+            color = Color(0xFFFF6B00).copy(alpha = 0.9f * globalAlpha),
+            radius = ballRadius,
+            center = Offset(currentX, currentY)
+        )
+        // Ball Lines (Cross)
+        rotate(progress * 720f, Offset(currentX, currentY)) {
+            drawLine(
+                color = Color.Black.copy(alpha = 0.5f * globalAlpha),
+                start = Offset(currentX - ballRadius, currentY),
+                end = Offset(currentX + ballRadius, currentY),
+                strokeWidth = ballRadius * 0.1f
+            )
+            drawLine(
+                color = Color.Black.copy(alpha = 0.5f * globalAlpha),
+                start = Offset(currentX, currentY - ballRadius),
+                end = Offset(currentX, currentY + ballRadius),
+                strokeWidth = ballRadius * 0.1f
+            )
+        }
+    }
+}
+
+@Composable
+fun BouncingBallBackground(globalAlpha: Float, ballColor: Color) {
+    // Simple vertical bounce for other sports
+    val infiniteTransition = rememberInfiniteTransition(label = "ball")
+    val yOffset by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 1000
+                0f at 0
+                1f at 500 using FastOutSlowInEasing
+                0f at 1000
+            }
+        ),
+        label = "bounce"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val ballRadius = size.minDimension * 0.06f
+        val groundY = size.height * 0.9f
+        val bounceHeight = size.height * 0.3f
+        
+        val currentY = groundY - (yOffset * bounceHeight)
+        
+        drawCircle(
+            color = ballColor.copy(alpha = 0.6f * globalAlpha),
+            radius = ballRadius,
+            center = Offset(size.width / 2, currentY)
+        )
+        
+        // Shadow
+        val shadowRadius = ballRadius * (1f - yOffset * 0.5f)
+        drawOval(
+            color = Color.Black.copy(alpha = 0.2f * globalAlpha * (1f - yOffset)),
+            topLeft = Offset(size.width / 2 - shadowRadius, groundY + 10f),
+            size = Size(shadowRadius * 2, 10f)
+        )
+    }
 }
 
 @Composable
 fun SpaceBackground(globalAlpha: Float) {
-   WallEBackground(globalAlpha)
+    // Wall-E style stars
+    ParticleBackground(globalAlpha, Color.White)
 }
 
 @Composable
@@ -310,12 +541,7 @@ fun NewYearBackground(globalAlpha: Float) {
 
 @Composable
 fun ShuttlecockBackground(globalAlpha: Float) {
-    AdvancedBadmintonBackground(alpha = globalAlpha)
-}
-
-@Composable
-fun FootballWorldCupBackground(globalAlpha: Float) {
-    AdvancedFootballBackground(alpha = globalAlpha)
+    BouncingBallBackground(globalAlpha, Color.White)
 }
 
 @Composable
@@ -643,6 +869,8 @@ fun FlyingDoraemon(infiniteTransition: InfiniteTransition, width: Float, height:
 
 @Composable
 fun MinionsBackground(globalAlpha: Float) {
-    AdvancedMinionsBackground(globalAlpha)
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFFD600).copy(alpha = 0.1f * globalAlpha)))
+    // Goggles
+    ZenBackground(globalAlpha) // Reusing circle logic for now
 }
 

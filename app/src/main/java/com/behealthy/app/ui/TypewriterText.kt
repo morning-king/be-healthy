@@ -42,7 +42,7 @@ fun TypewriterText(
     animDurationMillis: Int = 50, // Duration per character
     rainbow: Boolean = true // Enable rainbow effect by default as requested
 ) {
-    var visibleCharCount by remember { mutableStateOf(0) }
+    var visibleCharCount by remember { mutableIntStateOf(0) }
     
     LaunchedEffect(text) {
         visibleCharCount = 0

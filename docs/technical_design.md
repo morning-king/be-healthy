@@ -51,19 +51,15 @@
 ## 3. 核心功能详细设计
 
 ### 3.1 多主题系统实现 (Theme System)
-*   **设计目标**: 实现全应用风格统一切换，包括配色、Icon、Loading 动画及界面装饰。
-*   **核心组件**:
-    *   **ThemeStyle Enum**: 定义 `Default`, `WallE`, `Doraemon`, `Minions`, `Tech`, `NBA`, `Badminton`, `FootballWorldCup` 等枚举。
-    *   **ThemeIcons.kt**: 集中管理所有主题图标的绘制逻辑（Canvas Drawing），实现图标与业务逻辑解耦。
-        *   支持 `ThemeRotatingIcon`: 首页底部的动态旋转图标。
-        *   支持 `ThemedIcon`: 导航栏 Tab 图标的静态/动态切换。
-    *   **ThemeMiddleDecoration**: 底部导航栏的装饰覆盖层，支持自定义顶部线条（如哆啦A梦红丝带）和悬浮图标。
-*   **Persistence**: 使用 DataStore 存储当前选中的 `theme_style`。
-*   **Loading Animation**:
-    *   组件: `RunningLoading.kt`
-    *   机制: 基于 `Canvas` 的自定义绘制。不使用 Lottie 以减少包体积并增加动态控制能力。
-    *   逻辑: 根据 `ThemeStyle` 参数分发到不同的 Draw 函数 (e.g., `drawWallE`, `drawDoraemon`)。
-    *   动画: 使用 `rememberInfiniteTransition` 实现上下浮动 (Bobbing) 和跑步循环 (Run Cycle)。
+*   **设计目标**: 实现全应用风格统一切换，包括配色、Loading 动画。
+*   **实现方案**:
+    *   **ThemeStyle Enum**: 定义 `Default`, `WallE`, `Doraemon`, `Minions`, `Tech`, `NBA`, `Badminton`, `FootballWorldCup` 枚举。
+    *   **Persistence**: 使用 DataStore 存储当前选中的 `theme_style`。
+    *   **Loading Animation**:
+        *   组件: `RunningLoading.kt`
+        *   机制: 基于 `Canvas` 的自定义绘制。不使用 Lottie 以减少包体积并增加动态控制能力。
+        *   逻辑: 根据 `ThemeStyle` 参数分发到不同的 Draw 函数 (e.g., `drawWallE`, `drawDoraemon`)。
+        *   动画: 使用 `rememberInfiniteTransition` 实现上下浮动 (Bobbing) 和跑步循环 (Run Cycle)。
 
 ### 3.2 历史数据同步机制 (Historical Sync)
 *   **组件**: `SyncWorker` (WorkManager)

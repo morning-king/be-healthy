@@ -69,7 +69,6 @@ import com.behealthy.app.core.repository.WeatherInfo
 import com.behealthy.app.core.network.HolidayDetail
 import com.behealthy.app.ui.RunningLoading
 import com.behealthy.app.ui.TypewriterText
-import com.behealthy.app.ui.theme.ThemeStyle
 
 import androidx.compose.foundation.pager.PagerState
 import java.time.DayOfWeek
@@ -95,22 +94,16 @@ fun getMonthGridDays(yearMonth: YearMonth, firstDayOfWeek: DayOfWeek): List<Loca
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodTrackingScreen(
-    viewModel: MoodViewModel = hiltViewModel(),
-    themeStyle: ThemeStyle = ThemeStyle.Default
+    viewModel: MoodViewModel = hiltViewModel()
 ) {
     val currentMonth = remember { YearMonth.now() }
     val startMonth = remember { currentMonth.minusMonths(120) }
     val endMonth = remember { currentMonth.plusMonths(120) }
     val firstDayOfWeek = remember { firstDayOfWeekFromLocale() }
     
-    val isWallE = themeStyle == ThemeStyle.WallE
-    val calendarContentColor = if (isWallE) Color.White else MaterialTheme.colorScheme.onSurface
-    val calendarVariantColor = if (isWallE) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
-    
     // Use Pager instead of Calendar library
     val initialPage = 120
     val pagerState = rememberPagerState(initialPage = initialPage) { 241 }
-    val scope = rememberCoroutineScope()
     
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var showMoodDialog by remember { mutableStateOf(false) }
@@ -206,7 +199,7 @@ fun MoodTrackingScreen(
                         Text(
                             text = "第${weekNumber}周",
                             style = MaterialTheme.typography.bodySmall,
-                            color = calendarVariantColor
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         
@@ -218,19 +211,14 @@ fun MoodTrackingScreen(
                         ) {
                             IconButton(
                                 onClick = { 
-                                    try {
-                                        val today = LocalDate.now()
-                                        val diffMonths = YearMonth.from(today).monthValue - currentMonth.monthValue + 
-                                                        (YearMonth.from(today).year - currentMonth.year) * 12
-                                        val targetPage = initialPage + diffMonths
-                                        if (targetPage in 0 until pagerState.pageCount) {
-                                            scope.launch {
-                                                pagerState.animateScrollToPage(targetPage)
-                                                selectedDate = today
-                                            }
-                                        }
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
+                                    val today = LocalDate.now()
+                                    val diffMonths = YearMonth.from(today).monthValue - currentMonth.monthValue + 
+                                                    (YearMonth.from(today).year - currentMonth.year) * 12
+                                    val targetPage = initialPage + diffMonths
+                                    val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+                                    scope.launch {
+                                        pagerState.animateScrollToPage(targetPage)
+                                        selectedDate = today
                                     }
                                 },
                                 modifier = Modifier.size(20.dp)
@@ -301,7 +289,6 @@ fun MoodTrackingScreen(
                     ) { page ->
                         val pageMonth = currentMonth.plusMonths((page - initialPage).toLong())
                         val days = remember(pageMonth) { getMonthGridDays(pageMonth, firstDayOfWeek) }
-                        val calendarContentColor = MaterialTheme.colorScheme.onSurface
                         
                         // Month Grid
                         Column(
@@ -355,8 +342,7 @@ fun MoodTrackingScreen(
                                                         hasAudio = moodRecord?.audioPath != null,
                                                         isToday = date == LocalDate.now(),
                                                         weather = weatherInfo,
-                                                        holidayDetail = holidayDetail,
-                                                        contentColor = calendarContentColor
+                                                        holidayDetail = holidayDetail
                                                     ) { d ->
                                                         selectedDate = d
                                                         showMoodDialog = true
@@ -397,13 +383,11 @@ fun MoodTrackingScreen(
             initialDate = selectedDate,
             moodMap = moodMap,
             weatherMap = monthlyWeather,
-            holidaysMap = holidays,
             isLoading = isLoading,
             onDismiss = { showMoodDialog = false },
             onDateChange = { selectedDate = it },
-            onSave = { date, mood, note, audioPath, audioDuration, isHoliday, holidayName ->
+            onSave = { date, mood, note, audioPath, audioDuration ->
                 viewModel.saveMood(date, mood, note, audioPath, audioDuration)
-                viewModel.updateHolidayStatus(date, isHoliday, holidayName)
                 lastSavedMood = mood
                 isSaving = true
             }
@@ -614,11 +598,10 @@ fun MoodEntryDialog(
     initialDate: LocalDate,
     moodMap: Map<LocalDate, MoodRecordEntity>,
     weatherMap: Map<LocalDate, WeatherInfo>,
-    holidaysMap: Map<String, HolidayDetail>,
     isLoading: Boolean = false,
     onDismiss: () -> Unit,
     onDateChange: (LocalDate) -> Unit,
-    onSave: (LocalDate, String, String, String?, Long, Boolean, String) -> Unit
+    onSave: (LocalDate, String, String, String?, Long) -> Unit
 ) {
     // We use a fixed reference date (e.g. today or the clicked date) as the anchor for page 0 (or a large number)
     // To allow scrolling back and forth from the clicked date, we can set the initial page to a large number
@@ -669,8 +652,6 @@ fun MoodEntryDialog(
                 val pageDate = anchorDate.plusDays(diff.toLong())
                 val record = moodMap[pageDate]
                 val weather = weatherMap[pageDate]
-                val dateStr = pageDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
-                val holidayDetail = holidaysMap[dateStr.substring(5)]
                 
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -682,11 +663,10 @@ fun MoodEntryDialog(
                         initialNote = record?.note ?: "",
                         initialAudioPath = record?.audioPath,
                         initialAudioDuration = record?.audioDuration ?: 0L,
-                        initialHolidayDetail = holidayDetail,
                         isLoading = isLoading,
                         weather = weather,
-                        onSave = { mood, note, path, duration, isHoliday, holidayName ->
-                            onSave(pageDate, mood, note, path, duration, isHoliday, holidayName)
+                        onSave = { mood, note, path, duration ->
+                            onSave(pageDate, mood, note, path, duration)
                         },
                         onDismiss = onDismiss,
                         onPrevDay = {},
@@ -742,10 +722,9 @@ fun MoodEntryCard(
     initialNote: String,
     initialAudioPath: String?,
     initialAudioDuration: Long,
-    initialHolidayDetail: HolidayDetail?,
     isLoading: Boolean,
     weather: WeatherInfo? = null,
-    onSave: (String, String, String?, Long, Boolean, String) -> Unit,
+    onSave: (String, String, String?, Long) -> Unit,
     onDismiss: () -> Unit,
     onPrevDay: () -> Unit,
     onNextDay: () -> Unit
@@ -753,10 +732,6 @@ fun MoodEntryCard(
     var isEditing by remember(date) { mutableStateOf(initialMood == null) }
     var selectedMood by remember(date) { mutableStateOf(initialMood) }
     var moodNote by remember(date) { mutableStateOf(initialNote) }
-    
-    // Holiday State
-    var isHoliday by remember(date) { mutableStateOf(initialHolidayDetail?.holiday ?: false) }
-    var holidayName by remember(date) { mutableStateOf(initialHolidayDetail?.name ?: "") }
     
     // Audio State
     val context = LocalContext.current
@@ -886,13 +861,6 @@ fun MoodEntryCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        val conditionText = when(weather.condition.name) {
-                            "Sunny" -> "晴"
-                            "Cloudy" -> "多云"
-                            "Rainy" -> "雨"
-                            "Snowy" -> "雪"
-                            else -> "阴"
-                        }
                         val icon = when(weather.condition.name) {
                             "Sunny" -> "☀️"
                             "Cloudy" -> "☁️"
@@ -901,7 +869,7 @@ fun MoodEntryCard(
                             else -> "🌥️"
                         }
                         Text(
-                            text = "$icon $conditionText ${weather.temperature}°C",
+                            text = "$icon ${weather.condition.name} ${weather.temperature}°C",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1068,42 +1036,6 @@ fun MoodEntryCard(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Holiday Configuration
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("是否休假/节假日", style = MaterialTheme.typography.bodyMedium)
-                            Switch(
-                                checked = isHoliday,
-                                onCheckedChange = { isHoliday = it }
-                            )
-                        }
-                        
-                        if (isHoliday) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedTextField(
-                                value = holidayName,
-                                onValueChange = { holidayName = it },
-                                label = { Text("节日名称 (如: 春节, 元旦)") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                textStyle = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
                 // Audio Recorder Section
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1226,7 +1158,7 @@ fun MoodEntryCard(
                     Button(
                         onClick = { 
                             if (selectedMood != null) {
-                                onSave(selectedMood!!, moodNote, audioPath, audioDuration, isHoliday, holidayName)
+                                onSave(selectedMood!!, moodNote, audioPath, audioDuration)
                             }
                         },
                         enabled = selectedMood != null && !isRecording && !isLoading,
@@ -1262,7 +1194,6 @@ fun MoodDay(
     isToday: Boolean,
     weather: WeatherInfo?,
     holidayDetail: HolidayDetail?,
-    contentColor: Color,
     onClick: (LocalDate) -> Unit
 ) {
     Box(
@@ -1309,7 +1240,7 @@ fun MoodDay(
                     text = date.dayOfMonth.toString(),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isToday) MaterialTheme.colorScheme.primary else contentColor
+                    color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                 )
             }
             
@@ -1339,36 +1270,17 @@ fun MoodDay(
         // Holiday/Work Tag (Top Right)
         if (holidayDetail != null) {
             val text = if (holidayDetail.holiday) "休" else "班"
-            val bgColor = if (holidayDetail.holiday) Color(0xFF9C27B0) else Color(0xFFFF9800)
+            val color = if (holidayDetail.holiday) Color(0xFF9C27B0) else Color(0xFFFF9800)
             
-            Box(
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 8.sp,
+                color = color,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(2.dp)
-                    .background(bgColor, RoundedCornerShape(4.dp))
-                    .padding(horizontal = 3.dp, vertical = 1.dp)
-            ) {
-                 Text(
-                    text = text,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 8.sp,
-                    color = Color.White
-                )
-            }
-            
-            // Special Holiday Name Display (Optional, e.g. at bottom)
-            if (holidayDetail.holiday && holidayDetail.name.isNotEmpty() && holidayDetail.name.length <= 2) {
-                 Text(
-                    text = holidayDetail.name,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 7.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    lineHeight = 8.sp,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 2.dp)
-                )
-            }
+                    .padding(top = 2.dp, end = 4.dp)
+            )
         }
     }
 }

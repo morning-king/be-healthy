@@ -12,12 +12,30 @@ data class DailyActivityData(
     val durationMinutes: Int
 )
 
+/**
+ * Service to fetch health data, acting as a facade for Health Connect.
+ *
+ * Originally designed for OPPO Health Service integration, now adapts Health Connect data
+ * to the application's needs.
+ */
 @Singleton
 class OppoHealthService @Inject constructor(
     private val healthConnectManager: HealthConnectManager
 ) {
     
-    // Simulate fetching data from OPPO Health
+    /**
+     * Fetches daily activity data for a given date string.
+     *
+     * This method validates the date, checks for Health Connect permissions,
+     * and retrieves the data via [HealthConnectManager].
+     *
+     * @param date The date string in "YYYY-MM-DD" format.
+     * @return [DailyActivityData] containing steps, calories, etc. Returns zero-values if:
+     *         - Date format is invalid.
+     *         - Date is in the future.
+     *         - Permissions are missing.
+     *         - Data retrieval fails.
+     */
     suspend fun getDailyActivity(date: String): DailyActivityData {
         AppLogger.log("OppoHealthService", "Requesting data for $date")
         val localDate = try {

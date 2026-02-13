@@ -21,16 +21,32 @@ import javax.inject.Singleton
 
 import com.behealthy.app.core.logger.AppLogger
 
+/**
+ * Manages interactions with Android Health Connect API.
+ *
+ * This class handles permission checks, requests, and data retrieval from Health Connect.
+ * It serves as the primary gateway for accessing health data like steps, calories, and distance.
+ */
 @Singleton
 class HealthConnectManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
 
+    /**
+     * Checks the availability of Health Connect SDK on the device.
+     *
+     * @return The status code indicating availability (e.g., [HealthConnectClient.SDK_AVAILABLE]).
+     */
     fun getSdkStatus(): Int {
         return HealthConnectClient.getSdkStatus(context)
     }
 
+    /**
+     * Defines the set of permissions required by the application.
+     *
+     * @return A set of permission strings for reading Steps, Distance, Calories, etc.
+     */
     fun getRequiredPermissions(): Set<String> {
         return setOf(
             androidx.health.connect.client.permission.HealthPermission.getReadPermission(StepsRecord::class),
@@ -41,6 +57,12 @@ class HealthConnectManager @Inject constructor(
         )
     }
 
+    /**
+     * Checks if all required permissions are granted.
+     *
+     * @return `true` if all permissions in [getRequiredPermissions] are granted, `false` otherwise.
+     *         Also returns `false` if an error occurs during the check.
+     */
     suspend fun hasPermissions(): Boolean {
         return try {
             val grantedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
@@ -62,6 +84,11 @@ class HealthConnectManager @Inject constructor(
         }
     }
     
+    /**
+     * Retrieves missing permissions that need to be requested from the user.
+     *
+     * @return A set of missing permission strings. Returns all required permissions if an error occurs.
+     */
     suspend fun getMissingPermissions(): Set<String> {
         return try {
             val grantedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
@@ -71,6 +98,11 @@ class HealthConnectManager @Inject constructor(
         }
     }
     
+    /**
+     * Creates an Intent to request permissions from the user.
+     *
+     * @return An [android.content.Intent] to launch the permission request flow, or `null` if creation fails.
+     */
     fun getPermissionRequestIntent(): android.content.Intent? {
         return try {
             PermissionController.createRequestPermissionResultContract().createIntent(
@@ -82,6 +114,13 @@ class HealthConnectManager @Inject constructor(
         }
     }
 
+    /**
+     * Aggregates daily activity data (steps, calories, distance) for a specific date.
+     *
+     * @param date The date for which to retrieve data.
+     * @return A [DailyActivityData] object containing the aggregated data, or `null` if the request fails.
+     * @throws Exception Exceptions are caught internally and result in a null return, but logged.
+     */
     suspend fun getDailyActivity(date: LocalDate): DailyActivityData? = withContext(Dispatchers.IO) {
         try {
             val startTime = date.atStartOfDay(ZoneId.systemDefault()).toInstant()

@@ -117,7 +117,7 @@ fun LogViewerDialog(
                     }
                 }
 
-                HorizontalDivider()
+                Divider()
 
                 // Pager content
                 if (logs.isEmpty()) {
@@ -152,7 +152,7 @@ fun LogViewerDialog(
                                         ),
                                         modifier = Modifier.padding(vertical = 2.dp)
                                     )
-                                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.2f), thickness = 0.5.dp)
+                                    Divider(color = Color.LightGray.copy(alpha = 0.2f), thickness = 0.5.dp)
                                 }
                             }
                         }

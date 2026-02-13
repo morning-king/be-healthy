@@ -10,18 +10,17 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.DateRange
-import androidx.compose.material.icons.outlined.DirectionsRun
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.Face
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
@@ -40,20 +39,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.material3.FabPosition
+import androidx.compose.ui.text.font.FontWeight
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.hilt.navigation.compose.hiltViewModel
+
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -76,11 +74,18 @@ fun MainApp(
     val rootNavController = rememberNavController()
     val themeStyleName by viewModel.themeStyle.collectAsState()
     val backgroundAlpha by viewModel.backgroundAlpha.collectAsState()
+    val pageTransitionName by viewModel.pageTransition.collectAsState()
     
     val themeStyle = try {
         ThemeStyle.valueOf(themeStyleName)
     } catch (e: Exception) {
         ThemeStyle.Default
+    }
+    
+    val transitionEffect = try {
+        PageTransitionEffect.valueOf(pageTransitionName)
+    } catch (e: Exception) {
+        PageTransitionEffect.Default
     }
 
     BeHealthyTheme(themeStyle = themeStyle) {
@@ -108,6 +113,7 @@ fun MainApp(
             composable("home") {
                 MainScreen(
                     themeStyle = themeStyle,
+                    transitionEffect = transitionEffect,
                     onNavigateToCreatePlan = { rootNavController.navigate("create_plan") },
                     onNavigateToPlanList = { rootNavController.navigate("plan_list") }
                 )
@@ -310,12 +316,11 @@ fun ThemedIcon(
 }
 
 
-
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MainScreen(
     themeStyle: ThemeStyle,
+    transitionEffect: PageTransitionEffect = PageTransitionEffect.Default,
     onNavigateToCreatePlan: () -> Unit,
     onNavigateToPlanList: () -> Unit
 ) {
@@ -332,16 +337,106 @@ fun MainScreen(
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
-            Box(contentAlignment = Alignment.TopCenter) {
-                val currentRoute = mainRoutes[pagerState.currentPage]
-                
+            val currentRoute = mainRoutes[pagerState.currentPage]
+            
+            // Custom Bottom Bar for Doraemon Theme
+            if (themeStyle == ThemeStyle.Doraemon) {
+                Box {
+                    NavigationBar(
+                        containerColor = Color(0xFF0093DD), // Doraemon Blue
+                        contentColor = Color.White
+                    ) {
+                        // Fitness (Home)
+                        NavigationBarItem(
+                    icon = { Icon(if (currentRoute == "calendar") Icons.AutoMirrored.Filled.DirectionsRun else Icons.AutoMirrored.Outlined.DirectionsRun, "Fitness") },
+                    label = { Text("健身", fontWeight = FontWeight.Bold) },
+                            selected = currentRoute == "calendar",
+                            onClick = { navigateToTab(0) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFFDD0000), // Red
+                                selectedTextColor = Color.White,
+                                indicatorColor = Color.White,
+                                unselectedIconColor = Color.White.copy(alpha = 0.7f),
+                                unselectedTextColor = Color.White.copy(alpha = 0.7f)
+                            )
+                        )
+                        // Mood
+                        NavigationBarItem(
+                            icon = { Icon(if (currentRoute == "mood") Icons.Filled.Face else Icons.Outlined.Face, "Mood") },
+                            label = { Text("心情", fontWeight = FontWeight.Bold) },
+                            selected = currentRoute == "mood",
+                            onClick = { navigateToTab(1) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFFDD0000),
+                                selectedTextColor = Color.White,
+                                indicatorColor = Color.White,
+                                unselectedIconColor = Color.White.copy(alpha = 0.7f),
+                                unselectedTextColor = Color.White.copy(alpha = 0.7f)
+                            )
+                        )
+                        // Stats
+                        NavigationBarItem(
+                            icon = { Icon(if (currentRoute == "stats") Icons.Filled.DateRange else Icons.Outlined.DateRange, "Stats") },
+                            label = { Text("统计", fontWeight = FontWeight.Bold) },
+                            selected = currentRoute == "stats",
+                            onClick = { navigateToTab(2) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFFDD0000),
+                                selectedTextColor = Color.White,
+                                indicatorColor = Color.White,
+                                unselectedIconColor = Color.White.copy(alpha = 0.7f),
+                                unselectedTextColor = Color.White.copy(alpha = 0.7f)
+                            )
+                        )
+                        // Profile
+                        NavigationBarItem(
+                            icon = { Icon(if (currentRoute == "profile") Icons.Filled.Person else Icons.Outlined.Person, "Profile") },
+                            label = { Text("我的", fontWeight = FontWeight.Bold) },
+                            selected = currentRoute == "profile",
+                            onClick = { navigateToTab(3) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = Color(0xFFDD0000),
+                                selectedTextColor = Color.White,
+                                indicatorColor = Color.White,
+                                unselectedIconColor = Color.White.copy(alpha = 0.7f),
+                                unselectedTextColor = Color.White.copy(alpha = 0.7f)
+                            )
+                        )
+                    }
+                    // Red Collar Line
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .size(4.dp)
+                            .background(Color(0xFFDD0000))
+                            .align(Alignment.TopCenter)
+                    )
+                    // Bell in Center (Optional, purely decorative)
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_launcher_foreground), // Placeholder if we don't have bell resource. 
+                        // Actually let's draw a Bell using Canvas or just skip it to avoid resource issues.
+                        // Let's use a Gold Circle for Bell
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .align(Alignment.TopCenter)
+                            .padding(top = 2.dp),
+                        tint = Color.Transparent // Hide for now or draw canvas
+                    )
+                    Canvas(modifier = Modifier.size(16.dp).align(Alignment.TopCenter).padding(top = 2.dp)) {
+                        drawCircle(Color(0xFFFFD700))
+                        drawLine(Color.Black, Offset(0f, size.height/2), Offset(size.width, size.height/2), strokeWidth = 1.dp.toPx())
+                        drawCircle(Color.Black, radius = size.minDimension/5, center = Offset(size.width/2, size.height * 0.7f))
+                    }
+                }
+            } else {
                 NavigationBar {
                     // Fitness (Home)
                     NavigationBarItem(
                         icon = { 
                             ThemedIcon(
                                 themeStyle = themeStyle,
-                                icon = if (currentRoute == "calendar") Icons.Filled.DirectionsRun else Icons.Outlined.DirectionsRun, 
+                                icon = if (currentRoute == "calendar") Icons.AutoMirrored.Filled.DirectionsRun else Icons.AutoMirrored.Outlined.DirectionsRun, 
                                 contentDescription = "健身",
                                 isSelected = currentRoute == "calendar"
                             ) 
@@ -396,9 +491,6 @@ fun MainScreen(
                         onClick = { navigateToTab(3) }
                     )
                 }
-                
-                // Middle Decoration (Overlay)
-                ThemeMiddleDecoration(themeStyle)
             }
         }
     ) { padding ->
@@ -427,37 +519,4 @@ fun MainScreen(
     }
 }
 
-@Composable
-fun ThemeMiddleDecoration(themeStyle: ThemeStyle) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(80.dp), // Match NavigationBar height
-        contentAlignment = Alignment.TopCenter
-    ) {
-        // 1. Top Line
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val isDoraemon = themeStyle == ThemeStyle.Doraemon
-            val strokeWidth = if (isDoraemon) 3.dp.toPx() else 1.dp.toPx()
-            val color = if (isDoraemon) Color(0xFFE60012) else Color.Black.copy(alpha = 0.2f)
-            
-            // Draw line at the very top edge (accounting for stroke width to be fully visible inside)
-            val yPos = strokeWidth / 2
-            
-            drawLine(
-                color = color,
-                start = Offset(0f, yPos),
-                end = Offset(size.width, yPos),
-                strokeWidth = strokeWidth
-            )
-        }
-        
-        // 2. Rotating Icon (Bell in middle)
-        ThemeRotatingIcon(
-            themeStyle = themeStyle,
-            modifier = Modifier
-                .size(19.dp)
-                .offset(y = (-9.5).dp)
-        )
-    }
-}
+

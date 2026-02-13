@@ -13,6 +13,14 @@ import com.behealthy.app.core.database.entity.FitnessTaskEntity
 import com.behealthy.app.core.database.entity.MoodRecordEntity
 import com.behealthy.app.core.database.entity.HolidayEntity
 
+/**
+ * The main Room Database definition for the application.
+ *
+ * Defines the database configuration, including:
+ * - List of entities (tables).
+ * - Database version.
+ * - DAOs (Data Access Objects) for accessing the tables.
+ */
 @Database(
     entities = [
         FitnessPlanEntity::class,
@@ -21,13 +29,22 @@ import com.behealthy.app.core.database.entity.HolidayEntity
         DailyActivityEntity::class,
         HolidayEntity::class
     ],
-    version = 9,
+    version = 8,
     exportSchema = false
 )
 abstract class BeHealthyDatabase : RoomDatabase() {
+    /** Returns the DAO for Fitness Plans. */
     abstract fun fitnessPlanDao(): FitnessPlanDao
+    
+    /** Returns the DAO for Fitness Tasks (Daily records). */
     abstract fun fitnessTaskDao(): FitnessTaskDao
+    
+    /** Returns the DAO for Mood Records. */
     abstract fun moodDao(): MoodDao
+    
+    /** Returns the DAO for Daily Activity sync data. */
     abstract fun dailyActivityDao(): DailyActivityDao
+    
+    /** Returns the DAO for Holiday/Calendar data. */
     abstract fun holidayDao(): HolidayDao
 }
