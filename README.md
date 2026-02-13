@@ -97,6 +97,8 @@
 *   **[技术设计文档 (Design)](docs/technical_design.md)**: 数据库设计、核心功能实现细节。
 *   **[API 接口文档](docs/api_interface.md)**: 核心 Repository 接口及网络 API 说明。
 *   **[数据库文档](docs/database_schema.md)**: 详细的表结构与字段定义。
+*   **[综合趋势图表规范](docs/unified_trend_chart_spec.md)**: 运动数据可视化图表的设计与数据源规范。
+*   **[内容库扩充报告](docs/content_expansion_report.md)**: 每日一言与诗词库的扩充统计及管理手册。
 *   **[部署与测试文档](docs/deployment_and_testing.md)**: 详细的部署指南与测试策略。
 *   **[版本更新日志](CHANGELOG.md)**: 版本迭代记录。
 
