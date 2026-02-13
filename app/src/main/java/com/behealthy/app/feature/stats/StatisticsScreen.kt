@@ -178,6 +178,10 @@ fun StatisticsScreen(
                     }
 
                     item {
+                        StepTrendChartCard(state.dailyStats)
+                    }
+
+                    item {
                         MoodCurveChartCard(state.dailyStats)
                     }
 
@@ -265,17 +269,23 @@ fun DateRangeSelector(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(vertical = 8.dp), // Reduced vertical padding
         contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp) // Reduced spacing
     ) {
         items(DateRange.values()) { range ->
             val isSelected = range == selectedRange
             FilterChip(
                 selected = isSelected,
                 onClick = { onRangeSelected(range) },
-                label = { Text(range.label) },
+                label = { 
+                    Text(
+                        text = range.label, 
+                        style = MaterialTheme.typography.labelSmall // Reduced font size
+                    ) 
+                },
                 enabled = true,
+                modifier = Modifier.height(32.dp), // Reduced height (approx 30% less than standard 48dp)
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = OppoGreen,
                     selectedLabelColor = Color.White
@@ -628,6 +638,347 @@ fun ExerciseHistogramChart(dailyStats: List<DailyStatItem>) {
             start = Offset(0f, scanLineY),
             end = Offset(width, scanLineY),
             strokeWidth = 2.dp.toPx()
+        )
+    }
+}
+
+@Composable
+fun StepTrendChartCard(dailyStats: List<DailyStatItem>) {
+    var isHistogram by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("步数趋势", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Legend
+                    Box(modifier = Modifier.size(8.dp).background(OppoGreen, CircleShape))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("步数", style = MaterialTheme.typography.labelSmall)
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    // Toggle Button
+                    IconButton(
+                        onClick = { isHistogram = !isHistogram },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isHistogram) Icons.Default.BarChart else Icons.AutoMirrored.Filled.ShowChart,
+                            contentDescription = "Toggle Chart",
+                            tint = OppoGreen
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            if (isHistogram) {
+                StepHistogramChart(dailyStats)
+            } else {
+                StepCurveChart(dailyStats)
+            }
+        }
+    }
+}
+
+@Composable
+fun StepHistogramChart(dailyStats: List<DailyStatItem>) {
+    if (dailyStats.isEmpty()) {
+        Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+            Text("暂无数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
+
+    val maxSteps = dailyStats.maxOfOrNull { it.steps }?.takeIf { it > 0 } ?: 6000
+    
+    // Animation
+    var animationPlayed by remember { mutableStateOf(false) }
+    val progress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (animationPlayed) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 1000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "barGrowth"
+    )
+    
+    LaunchedEffect(Unit) {
+        animationPlayed = true
+    }
+    
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    
+    val textPaint = remember {
+        Paint().apply {
+            color = android.graphics.Color.GRAY
+            textSize = 24f
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT
+        }
+    }
+
+    Canvas(modifier = Modifier
+        .fillMaxWidth()
+        .height(200.dp)
+        .pointerInput(Unit) {
+            detectTapGestures(
+                onTap = { offset ->
+                    val width = size.width
+                    val barWidth = width / dailyStats.size
+                    val index = (offset.x / barWidth).toInt().coerceIn(dailyStats.indices)
+                    selectedIndex = if (selectedIndex == index) null else index
+                }
+            )
+        }
+    ) {
+        val width = size.width
+        val height = size.height
+        val paddingBottom = 40f
+        val chartHeight = height - paddingBottom
+        val barWidth = width / dailyStats.size
+        val barSpacing = barWidth * 0.2f
+        val actualBarWidth = barWidth - barSpacing
+        
+        // Grid
+        val gridLines = 4
+        val rowHeight = chartHeight / gridLines
+        for (i in 0..gridLines) {
+            val y = i * rowHeight
+            drawLine(
+                color = Color.LightGray.copy(alpha = 0.2f),
+                start = Offset(0f, y),
+                end = Offset(width, y),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+        
+        dailyStats.forEachIndexed { index, item ->
+            val x = index * barWidth + barSpacing / 2
+            
+            // Steps Bar
+            val stepHeight = (item.steps.toFloat() / maxSteps * chartHeight) * progress
+            val stepTop = chartHeight - stepHeight
+            
+            drawRoundRect(
+                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(OppoGreen.copy(alpha = 0.8f), OppoGreen.copy(alpha = 0.3f)),
+                    startY = stepTop,
+                    endY = chartHeight
+                ),
+                topLeft = Offset(x, stepTop),
+                size = androidx.compose.ui.geometry.Size(actualBarWidth, stepHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx())
+            )
+            
+            // Date Label
+            val showLabel = if (dailyStats.size > 10) index % 3 == 0 else true
+            if (showLabel) {
+                drawContext.canvas.nativeCanvas.drawText(
+                    item.date.format(DateTimeFormatter.ofPattern("MM-dd")),
+                    x + actualBarWidth / 2,
+                    height - 10f,
+                    textPaint.apply { color = android.graphics.Color.GRAY; textSize = 24f }
+                )
+            }
+            
+            // Tooltip
+            if (index == selectedIndex) {
+                 // Highlight
+                drawRect(
+                    color = Color.White.copy(alpha = 0.1f),
+                    topLeft = Offset(index * barWidth, 0f),
+                    size = androidx.compose.ui.geometry.Size(barWidth, height)
+                )
+
+                val tooltipWidth = 200f
+                val tooltipHeight = 100f
+                val tooltipX = if (x + tooltipWidth > width) x - tooltipWidth - 20f else x + 20f
+                val tooltipY = 10f
+                
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.95f),
+                    topLeft = Offset(tooltipX, tooltipY),
+                    size = androidx.compose.ui.geometry.Size(tooltipWidth, tooltipHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f)
+                )
+                drawRoundRect(
+                    color = OppoGreen,
+                    topLeft = Offset(tooltipX, tooltipY),
+                    size = androidx.compose.ui.geometry.Size(tooltipWidth, tooltipHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f),
+                    style = Stroke(width = 2.dp.toPx())
+                )
+                
+                val dateStr = item.date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                drawContext.canvas.nativeCanvas.drawText(
+                    dateStr,
+                    tooltipX + 20f,
+                    tooltipY + 40f,
+                    textPaint.apply { textSize = 26f; color = android.graphics.Color.BLACK; textAlign = Paint.Align.LEFT; typeface = Typeface.DEFAULT_BOLD }
+                )
+                drawContext.canvas.nativeCanvas.drawText(
+                    "步数: ${item.steps}",
+                    tooltipX + 20f,
+                    tooltipY + 75f,
+                    textPaint.apply { textSize = 24f; color = android.graphics.Color.DKGRAY; typeface = Typeface.DEFAULT }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun StepCurveChart(dailyStats: List<DailyStatItem>) {
+    if (dailyStats.isEmpty()) {
+        Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+            Text("暂无数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
+
+    val maxSteps = dailyStats.maxOfOrNull { it.steps }?.takeIf { it > 0 } ?: 6000
+    
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    
+    val textPaint = remember {
+        Paint().apply {
+            color = android.graphics.Color.GRAY
+            textSize = 24f
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT
+        }
+    }
+
+    Canvas(modifier = Modifier
+        .fillMaxWidth()
+        .height(200.dp)
+        .pointerInput(Unit) {
+            detectTapGestures(
+                onTap = { offset ->
+                    val width = size.width
+                    val pointWidth = width / (dailyStats.size + 0.5f)
+                    val index = ((offset.x - pointWidth / 2) / pointWidth).roundToInt()
+                    if (index in dailyStats.indices) {
+                        selectedIndex = if (selectedIndex == index) null else index
+                    } else {
+                        selectedIndex = null
+                    }
+                }
+            )
+        }
+    ) {
+        val width = size.width
+        val height = size.height
+        val paddingBottom = 40f
+        val chartHeight = height - paddingBottom
+        val pointWidth = width / (dailyStats.size + 0.5f)
+        
+        // Grid
+        val gridLines = 4
+        val rowHeight = chartHeight / gridLines
+        for (i in 0..gridLines) {
+            val y = i * rowHeight
+            drawLine(
+                color = Color.LightGray.copy(alpha = 0.3f),
+                start = Offset(0f, y),
+                end = Offset(width, y),
+                strokeWidth = 1.dp.toPx()
+            )
+            
+            val stepValue = (maxSteps * (1 - i.toFloat()/gridLines)).toInt()
+            drawContext.canvas.nativeCanvas.drawText(
+                "$stepValue",
+                0f,
+                y - 5f,
+                textPaint.apply { 
+                    textSize = 20f
+                    color = android.graphics.Color.GRAY
+                    textAlign = Paint.Align.LEFT
+                }
+            )
+        }
+        
+        val stepsPath = Path()
+        
+        dailyStats.forEachIndexed { index, item ->
+            val x = index * pointWidth + pointWidth / 2
+            val y = chartHeight - (item.steps.toFloat() / maxSteps * chartHeight)
+            
+            if (index == 0) stepsPath.moveTo(x, y) else stepsPath.lineTo(x, y)
+            
+            drawCircle(
+                color = OppoGreen,
+                center = Offset(x, y),
+                radius = 3.dp.toPx()
+            )
+            
+            // Date Label
+            val showLabel = if (dailyStats.size > 10) index % 3 == 0 else true
+            if (showLabel) {
+                drawContext.canvas.nativeCanvas.drawText(
+                    item.date.format(DateTimeFormatter.ofPattern("MM-dd")),
+                    x,
+                    height - 10f,
+                    textPaint.apply { color = android.graphics.Color.GRAY; textSize = 24f; textAlign = Paint.Align.CENTER }
+                )
+            }
+            
+            if (index == selectedIndex) {
+                 drawLine(
+                     color = Color.Gray.copy(alpha = 0.5f),
+                     start = Offset(x, 0f),
+                     end = Offset(x, chartHeight),
+                     strokeWidth = 1.dp.toPx(),
+                     pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                 )
+                 
+                 val tooltipWidth = 200f
+                 val tooltipHeight = 100f
+                 val tooltipX = if (x + tooltipWidth > width) x - tooltipWidth - 20f else x + 20f
+                 val tooltipY = 10f
+                 
+                 drawRoundRect(
+                     color = Color.White.copy(alpha = 0.95f),
+                     topLeft = Offset(tooltipX, tooltipY),
+                     size = androidx.compose.ui.geometry.Size(tooltipWidth, tooltipHeight),
+                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f)
+                 )
+                 drawRoundRect(
+                     color = Color.LightGray,
+                     topLeft = Offset(tooltipX, tooltipY),
+                     size = androidx.compose.ui.geometry.Size(tooltipWidth, tooltipHeight),
+                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(16f, 16f),
+                     style = Stroke(width = 1.dp.toPx())
+                 )
+                 
+                 val dateStr = item.date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                 drawContext.canvas.nativeCanvas.drawText(
+                     dateStr,
+                     tooltipX + 20f,
+                     tooltipY + 40f,
+                     textPaint.apply { textSize = 26f; color = android.graphics.Color.BLACK; textAlign = Paint.Align.LEFT; typeface = Typeface.DEFAULT_BOLD }
+                 )
+                 drawContext.canvas.nativeCanvas.drawText(
+                     "步数: ${item.steps}",
+                     tooltipX + 20f,
+                     tooltipY + 75f,
+                     textPaint.apply { textSize = 24f; color = android.graphics.Color.DKGRAY; typeface = Typeface.DEFAULT }
+                 )
+            }
+        }
+        
+        drawPath(
+            path = stepsPath,
+            color = OppoGreen,
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
         )
     }
 }

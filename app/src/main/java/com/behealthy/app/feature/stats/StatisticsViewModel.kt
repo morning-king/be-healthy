@@ -18,6 +18,7 @@ import javax.inject.Inject
 
 enum class DateRange(val label: String) {
     WEEK("最近一周"),
+    TWO_WEEKS("最近两周"),
     MONTH("最近一月"),
     THREE_MONTHS("最近三月"),
     SIX_MONTHS("最近半年"),
@@ -51,6 +52,8 @@ data class StatisticsUiState(
     val avgCaloriesBurned: Int = 0,
     val avgDurationMinutes: Int = 0,
     val avgSteps: Int = 0,
+    val maxSteps: Int = 0,
+    val stepGoalDays: Int = 0, // Days with steps >= 6000 (default goal)
     val totalPlans: Int = 0,
     val activePlans: Int = 0,
     val completedPlans: Int = 0,
@@ -121,6 +124,7 @@ class StatisticsViewModel @Inject constructor(
                 val endDate = if (dateRange == DateRange.CUSTOM && customRange != null) customRange.second else LocalDate.now()
                 val startDate = when (dateRange) {
                     DateRange.WEEK -> LocalDate.now().minusDays(6)
+                    DateRange.TWO_WEEKS -> LocalDate.now().minusDays(13)
                     DateRange.MONTH -> LocalDate.now().minusMonths(1)
                     DateRange.THREE_MONTHS -> LocalDate.now().minusMonths(3)
                     DateRange.SIX_MONTHS -> LocalDate.now().minusMonths(6)
@@ -181,6 +185,8 @@ class StatisticsViewModel @Inject constructor(
                 val avgCalories = if (daysWithData > 0) totalCalories / daysWithData else 0
                 val avgDuration = if (daysWithData > 0) totalDuration / daysWithData else 0
                 val avgSteps = if (daysWithData > 0) totalSteps / daysWithData else 0
+                val maxSteps = dailyStats.maxOfOrNull { it.steps } ?: 0
+                val stepGoalDays = dailyStats.count { it.steps >= 6000 } // Assuming 6000 is a reasonable default goal
                 
                 // Analysis
                 val exerciseAnalysis = generateExerciseAnalysis(dailyStats)
@@ -197,6 +203,8 @@ class StatisticsViewModel @Inject constructor(
                     avgCaloriesBurned = avgCalories,
                     avgDurationMinutes = avgDuration,
                     avgSteps = avgSteps,
+                    maxSteps = maxSteps,
+                    stepGoalDays = stepGoalDays,
                     totalPlans = plans.size,
                     activePlans = plans.count { it.isActive },
                     completedPlans = plans.size - plans.count { it.isActive },
